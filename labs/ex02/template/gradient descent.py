@@ -2,12 +2,10 @@
 """Gradient Descent"""
 
 def compute_gradient(y, tx, w):
-    """Compute the gradient."""
-    # ***************************************************
-    # INSERT YOUR CODE HERE
-    # TODO: compute gradient and loss
-    # ***************************************************
-    raise NotImplementedError
+    """Compute the gradient for MSE of linear regression"""
+    N = y.shape[0]
+    e = y - (tx @ np.vstack(w)).flatten()
+    return (-1/N) * (tx.T @ e)
 
 
 def gradient_descent(y, tx, initial_w, max_iters, gamma):
@@ -21,12 +19,10 @@ def gradient_descent(y, tx, initial_w, max_iters, gamma):
         # INSERT YOUR CODE HERE
         # TODO: compute gradient and loss
         # ***************************************************
-        raise NotImplementedError
-        # ***************************************************
-        # INSERT YOUR CODE HERE
-        # TODO: update w by gradient
-        # ***************************************************
-        raise NotImplementedError
+        dw = compute_gradient(y, tx, w)
+        loss = compute_mse_loss(y, tx, w)
+
+        w = w - gamma * dw
         # store w and loss
         ws.append(w)
         losses.append(loss)
