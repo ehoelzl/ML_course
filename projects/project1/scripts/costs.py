@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-
+from utils import sigmoid
 """Function used to compute the loss."""
 
 
@@ -27,6 +27,11 @@ def compute_mae_loss(y, tx, w):
     e = np.abs(y - tx.dot(w))
     return np.mean(e)
 
+def compute_logistic_loss(y, tx, w):
+    xw = tx.dot(w)
+    loss = np.sum(np.log(1 + np.exp(xw))) - y.T.dot(xw)
+    return np.squeeze(loss)
+    
 
 def compute_rmse_loss(y, tx, w):
     return np.sqrt(2 * compute_mse_loss(y, tx, w))

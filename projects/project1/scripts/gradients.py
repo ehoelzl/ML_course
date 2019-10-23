@@ -1,4 +1,5 @@
 import numpy as np
+from utils import sigmoid
 
 
 def compute_mse_gradient(y: np.array, tx: np.array, w: np.array):
@@ -25,3 +26,9 @@ def compute_mae_subgradient(y: np.array, tx: np.array, w: np.array):
     sign_e = np.sign(y - tx.dot(w))
     subgradient = - tx.T.dot(sign_e) / len(sign_e)
     return subgradient
+
+
+def compute_logistic_gradient(y: np.array, tx: np.array, w: np.array):
+    pred = sigmoid(tx.dot(w))
+    gradient = tx.T.dot(pred - y)
+    return gradient
