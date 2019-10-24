@@ -1,5 +1,5 @@
 import numpy as np
-from implementations import least_squares_GD
+from implementations import least_squares_GD, ridge_regression
 from costs import compute_mse_loss
 from proj1_helpers import compute_accuracy
 
@@ -12,10 +12,38 @@ def build_k_indices(y, k_fold):
     return np.array(k_indices)
 
 
+def cross_validation_ridge(y, x, k_indices, k, lambda_):
+    val_indices = k_indices[k]
+    train_indices = k_indices[~(np.arange(len(k_indices)) == k)].reshape(-1)
+    x_val, y_val = x[val_indices], y[val_indices]
+    x_train, y_train = x[train_indices], y[train_indices]
+    
+    w, loss_tr = ridge_regression(y_train, x_train, lambda_)
+    
+    loss_val = compute_mse_loss(y_val, x_val, w) + (2*lambda_*np.linalg.norm(w)**2)
+    acc = compute_accuracy(y_val, x_val, w)
+    return w, loss_tr, loss_val, acc
+
+
+def cross_validation_ls_gd(y, x, k_indices, k, iters, gamma, lambda_):
+    val_indices = k_indices[k]
+    train_indices = k_indices[~(np.arange(len(k_indices)) == k)].reshape(-1)
+    x_val, y_val = x[val_indices], y[val_indices]
+    x_train, y_train = x[train_indices], y[train_indices]
+    
+    initial_w = np.ones((x_train.shape[1], 1))
+    w, loss_tr = least_squares_GD(y_train, x_train, initial_w, iters, gamma, lambda_=lambda_, _print=False)
+    
+    loss_val = compute_mse_loss(y_val, x_val, w) + (lambda_ * np.sum(np.abs(w)))
+    acc = compute_accuracy(y_val, x_val, w)
+    return w, loss_tr, loss_val, acc
+    
+"""
 def cross_validation_ls_gd(y, x, k_fold, gammas, max_iters):
     loss_tr, loss_te = [], [] # Define loss accumulators for both
     acc_tr, acc_te = [], [] # Define accuracy accumulators
     k_indices = build_k_indices(y, k_fold) # TODO rename test to validation
+    
     best_weights = None
     max_acc = 0
     for gamma in gammas:
@@ -47,4 +75,4 @@ def cross_validation_ls_gd(y, x, k_fold, gammas, max_iters):
         acc_tr.append(acc_tr_tmp)
         acc_te.append(acc_te_tmp)
     return best_weights, loss_te, acc_te, loss_tr, acc_tr
-            
+"""
