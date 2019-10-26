@@ -1,10 +1,10 @@
-from costs import compute_mse_loss, compute_mae_loss, compute_logistic_loss
-from gradients import compute_mse_gradient, compute_mae_subgradient, compute_logistic_gradient
+from costs import compute_mse_loss, compute_logistic_loss, compute_reg_logistic_loss
+from gradients import compute_mse_gradient, compute_logistic_gradient
 from utils import batch_iter
 import numpy as np
 
 
-def least_squares_GD(y, tx, initial_w, max_iters, gamma, lambda_=0, _print=True):
+def least_squares_GD(y, tx, initial_w, max_iters, gamma, _print=True):
     """
     Linear regression (Least squares) using gradient descent (using L1 Regularization)
     
@@ -18,8 +18,8 @@ def least_squares_GD(y, tx, initial_w, max_iters, gamma, lambda_=0, _print=True)
     # Define parameters to store w and loss
     w = initial_w
     for n_iter in range(max_iters):
-        dw = compute_mse_gradient(y, tx, w) + lambda_
-        loss = compute_mse_loss(y, tx, w) + (lambda_ * np.sum(np.abs(w)))
+        dw = compute_mse_gradient(y, tx, w) 
+        loss = compute_mse_loss(y, tx, w)
 
         # Update parameters
         w = w - gamma * dw
@@ -91,7 +91,6 @@ def ridge_regression(y, tx, lambda_):
     loss = compute_mse_loss(y, tx, w) + (2*lambda_*np.linalg.norm(w)**2)
     return w, loss
 
-
 def logistic_regression(y, tx, initial_w, max_iters, gamma, _print=True):
     """
     Logistic regression using gradient descent of SGD
@@ -108,6 +107,7 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma, _print=True):
     for n_iter in range(max_iters):
         dw = compute_logistic_gradient(y, tx, w)
         loss = compute_logistic_loss(y, tx, w)
+        
         # Update parameters
         w = w - gamma * dw
         # store w and loss
@@ -133,7 +133,7 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma, _print=
     w = initial_w
     for n_iter in range(max_iters):
         dw = compute_logistic_gradient(y, tx, w) + (lambda_ * w)
-        loss = compute_logistic_loss(y, tx, w) + ((1/2.0) * lambda_ *np.linalg.norm(w)**2)
+        loss = compute_reg_logistic_loss(y, tx, w, lambda_)
         # Update parameters
         w = w - gamma * dw
         # store w and loss
@@ -141,32 +141,5 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma, _print=
             print("Gradient Descent({bi}/{ti}): loss={l}".format(
                     bi=n_iter, ti=max_iters - 1, l=loss))
 
-    loss = compute_logistic_loss(y, tx, w) + ((1/2.0) * lambda_ * np.linalg.norm(w)**2)
-    return w, loss
-
-
-def reg_logistic_regression_l1(y, tx, lambda_, initial_w, max_iters, gamma, _print=True):
-    """
-    Regularized using (L1 regularization) Logistic regression using gradient descent or SGD
-    
-    :param y: Labels
-    :param tx: Feature matrix
-    :param lambda_: regularization parameter
-    :param initial_w: Initial weights
-    :param max_iters: Max iterations
-    :param gamma: Step size
-    :return: weights, loss
-    """
-    w = initial_w
-    for n_iter in range(max_iters):
-        dw = compute_logistic_gradient(y, tx, w) + lambda_
-        loss = compute_logistic_loss(y, tx, w) + (lambda_ * np.sum(np.abs(w)))
-        # Update parameters
-        w = w - gamma * dw
-        # store w and loss
-        if n_iter % 100 == 0 and _print:
-            print("Gradient Descent({bi}/{ti}): loss={l}".format(
-                    bi=n_iter, ti=max_iters - 1, l=loss))
-
-    loss = compute_logistic_loss(y, tx, w) + ((1/2.0) * lambda_ * np.linalg.norm(w)**2)
+    loss = compute_reg_logistic_loss(y, tx, w, lambda_)
     return w, loss

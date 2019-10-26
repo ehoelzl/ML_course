@@ -35,3 +35,7 @@ def compute_logistic_loss(y, tx, w):
 
 def compute_rmse_loss(y, tx, w):
     return np.sqrt(2 * compute_mse_loss(y, tx, w))
+
+def compute_reg_logistic_loss(y, tx, w, lambda_):
+    return compute_logistic_loss(y, tx, w) + ((1/2.0) * lambda_ * np.linalg.norm(w)**2)
+    

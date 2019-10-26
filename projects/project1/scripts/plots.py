@@ -40,3 +40,4 @@ def plot_label_distribution(x, y, headers, col_indices, title, ncols, nrows, fig
             i = (i + 1) % nrows
     fig.suptitle(title, y=1.03)
     plt.tight_layout()
+    

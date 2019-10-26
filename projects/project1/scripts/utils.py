@@ -1,7 +1,5 @@
 import numpy as np
 
-
-
 def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
     """
     Generate a minibatch iterator for a dataset.
@@ -50,4 +48,3 @@ def split_train_test(x, y, ratio, seed=1):
 
 def sigmoid(z):
     return 1.0 / (1.0 + np.exp(-z))
-
