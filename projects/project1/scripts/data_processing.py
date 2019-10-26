@@ -10,19 +10,20 @@ def split_dataset(x, y, jet_col, mass_col):
     """
     wm_0, nm_0 = np.where((x[:, jet_col] == 0) & (x[:, mass_col] > -999)), np.where((x[:, jet_col] == 0) & (x[:, mass_col] == -999))
     wm_1, nm_1 = np.where((x[:, jet_col] == 1) & (x[:, mass_col] > -999)), np.where((x[:, jet_col] == 1) & (x[:, mass_col] == -999))
-    wm_2, nm_2 = np.where((x[:, jet_col] > 1) & (x[:, mass_col] > -999)), np.where((x[:, jet_col] > 1) & (x[:, mass_col] == -999))
-
+    wm_2, nm_2 = np.where((x[:, jet_col] == 2) & (x[:, mass_col] > -999)), np.where((x[:, jet_col] == 2) & (x[:, mass_col] == -999))
+    wm_3, nm_3 = np.where((x[:, jet_col] == 3) & (x[:, mass_col] > -999)), np.where((x[:, jet_col] == 3) & (x[:, mass_col] == -999))
+    
     x_0, y_0, x_0_nm, y_0_nm = x[wm_0], y[wm_0], x[nm_0], y[nm_0]
     x_1, y_1, x_1_nm, y_1_nm = x[wm_1], y[wm_1], x[nm_1], y[nm_1]
     x_2, y_2, x_2_nm, y_2_nm = x[wm_2], y[wm_2], x[nm_2], y[nm_2]
-    
-    assert (y_0.shape[0] + y_0_nm.shape[0] + y_1.shape[0] + y_1_nm.shape[0] + y_2.shape[0] + y_2_nm.shape[0]) == y.shape[0]
-    return x_0, y_0, x_0_nm, y_0_nm, x_1, y_1, x_1_nm, y_1_nm, x_2, y_2, x_2_nm, y_2_nm
+    x_3, y_3, x_3_nm, y_3_nm = x[wm_3], y[wm_3], x[nm_3], y[nm_3]
+    assert (y_0.shape[0] + y_0_nm.shape[0] + y_1.shape[0] + y_1_nm.shape[0] + y_2.shape[0] + y_2_nm.shape[0] + y_3.shape[0] + y_3_nm.shape[0]) == y.shape[0]
+    return x_0, y_0, x_0_nm, y_0_nm, x_1, y_1, x_1_nm, y_1_nm, x_2, y_2, x_2_nm, y_2_nm, x_3, y_3, x_3_nm, y_3_nm
 
 
 def normalize_columns(x):
     """Normalizes the columns of the matrix"""
-    maxes = np.max(x, axis=0)
+    maxes = np.max(np.abs(x), axis=0)
     return x / maxes
 
 def standardize_columns(x):

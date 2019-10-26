@@ -3,6 +3,10 @@ from implementations import reg_logistic_regression
 from costs import compute_reg_logistic_loss
 from proj1_helpers import compute_accuracy
 
+from feature_expansion import enhance_features
+from data_processing import prepare_for_training
+import matplotlib.pyplot as plt 
+
 def build_k_indices(y, k_fold):
     """build k indices for k-fold."""
     num_row = y.shape[0]
@@ -37,9 +41,41 @@ def cross_validate_lambdas(y, x, k_fold, iters, gamma, lambdas):
         
         for k in range(k_fold):
             w, loss_tr, loss_val, acc_val = cross_validation_reg_logistic(y, x, k_indices, k, iters, gamma, lambda_)
+            #print(acc_val, loss_val)
             accuracy.append(acc_val)
             losses_val.append(loss_val)
-        print(f"Got average accuracy {np.mean(accuracy)} for lambda={lambda_}")
         accuracies.append(accuracy)
         losses.append(losses_val)
     return accuracies, losses
+
+
+def cross_validate_degrees(x, y, headers, gamma, lambda_, degrees, k_fold, title):
+    max_iters = 1000
+    k_indices = build_k_indices(y, k_fold)
+    accuracies, losses = [], []
+    
+    for deg in degrees:
+        x_new, proj_mat = enhance_features(x, headers, deg, plot=False, print_=False)
+        x_train, y_train, _, _ = prepare_for_training(x_new, y, 0, split=False)
+        accs, losses_val = [], []
+        for k in range(k_fold):
+            w, loss_tr, loss_val, acc = cross_validation_reg_logistic(y_train, x_train, k_indices, k, max_iters, gamma, lambda_)
+            accs.append(acc)
+            losses_val.append(loss_val)
+        #print(f"Average accuracy for degrees up to {deg}={np.mean(accs)}")
+        accuracies.append(accs)
+        losses.append(losses_val)
+    fig, ax = plt.subplots(ncols=2, figsize=(12, 4))
+    
+    ax[0].plot(np.mean(accuracies, axis=1))
+    ax[0].set_xticks(np.arange(len(degrees)));
+    ax[0].set_xticklabels(degrees);
+    ax[0].set_title("Mean validation accuracy")
+    ax[0].set_xlabel("Polynomial expansion degree")
+    
+    ax[1].plot(np.mean(losses, axis=1))
+    ax[1].set_xticks(np.arange(len(degrees)));
+    ax[1].set_xticklabels(degrees);
+    ax[1].set_title("Mean validation loss")
+    ax[1].set_xlabel("Polynomial expansion degree")
+    fig.suptitle(title, y=1.05)

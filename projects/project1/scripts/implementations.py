@@ -118,7 +118,7 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma, _print=True):
     return w, loss
 
 
-def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma, _print=True):
+def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma, _print=True, decay=False):
     """
     Regularized (using L2 regularization) Logistic regression using gradient descent or SGD
     
@@ -140,6 +140,7 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma, _print=
         if n_iter % 100 == 0 and _print:
             print("Gradient Descent({bi}/{ti}): loss={l}".format(
                     bi=n_iter, ti=max_iters - 1, l=loss))
-
+        if n_iter > 0 and n_iter % 300 == 0 and decay:
+            gamma = gamma / 10
     loss = compute_reg_logistic_loss(y, tx, w, lambda_)
     return w, loss

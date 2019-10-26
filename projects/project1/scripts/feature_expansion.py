@@ -37,6 +37,13 @@ def logarithmic_expansion(x, columns):
     log = np.log(np.abs(x[:, columns]) + 1)
     return np.c_[x, log]
 
+def sinus_expansion(x, columns):
+    sin = np.sin(x[:, columns])
+    return np.c_[x, sin]
+
+def cosinus_expansion(x, columns):
+    cos = np.cos(x[:, columns])
+    return np.c_[x, cos]
 
 def enhance_features(x, headers, poly_degree, pca_threshold=0.99, plot=True, proj_matrix=None, print_=True):
     """This function transforms the features of the given matrix by 
@@ -45,21 +52,25 @@ def enhance_features(x, headers, poly_degree, pca_threshold=0.99, plot=True, pro
     - Exponential, Logarithmic and polynomial expansion of all columns
     - Perform PCA or project on given projection matrix
     """
-    x, cols = remove_unnecessary_features(x)
+    x, cols = remove_unnecessary_features(x) # Removes features with no variance
     headers = headers[cols]
     if print_:
         print(f"The {len(headers)} features remaining after filtering zero-variance features are: \n\n {headers}\n")
     
+    
     x = normalize_columns(x)
     if print_:
         print(f"Performing polynomial expansion up to degree {poly_degree}")
-    x = exponential_expansion(x, np.arange(len(headers)))
-    x = logarithmic_expansion(x, np.arange(len(headers)))
-    x = polynomial_expansion(x, np.arange(len(headers)), poly_degree)
+    
+    #x = polynomial_expansion(x, np.arange(len(headers)), poly_degree)
+    #x = exponential_expansion(x, np.arange(len(headers)))
+    #x = logarithmic_expansion(x, np.arange(len(headers)))
+    #x = sinus_expansion(x, np.arange(len(headers)))
+    #x = cosinus_expansion(x, np.arange(len(headers)))
     
     if print_:
         print(f"Matrix has now {x.shape[1]} features")
     
     # So that we can use this function both to prepare for training and testing
-    x, proj_matrix = perform_pca(x, threshold=pca_threshold, plot=plot, proj_matrix=proj_matrix)
+    #x, proj_matrix = perform_pca(x, threshold=pca_threshold, plot=plot, proj_matrix=proj_matrix)
     return x, proj_matrix
