@@ -31,6 +31,22 @@ def cross_validation_ridge(y, x, k_indices, k, lambda_):
     acc = compute_accuracy(y_val, x_val, w)
     return w, loss_tr, loss_val, acc
 
+def cross_validation_logistic(y, x, k_indices, k, lambda_, gamma, max_iters=500):
+    """Performs one iteration of the k-fold cross validation using L2 Regularized Logistic regression"""
+    val_indices = k_indices[k]
+    train_indices = k_indices[~(np.arange(len(k_indices)) == k)].reshape(-1)
+    x_val, y_val = x[val_indices], y[val_indices]
+    x_train, y_train = x[train_indices], y[train_indices]
+    
+    initial_w = np.zeros((x.shape[1], 1))
+    w, loss_tr = reg_logistic_regression(y_train, x_train, lambda_, initial_w, max_iters, gamma, _print=False)
+    
+    loss_val = compute_reg_logistic_loss_l2(y_val, x_val, w, lambda_)
+                                         
+    y_val[np.where(y_val == 0)] = -1
+    acc = compute_accuracy(y_val, x_val, w)
+    return w, loss_tr, loss_val, acc
+
 
 # def cross_validate_reg(x, y, cols, gamma, lambdas, k_fold, title, max_iters=500):
 #     x_train, y_train, x_test, y_test = prepare_for_training(x, y, cols, 0, split=False)
@@ -64,7 +80,7 @@ def cross_validation_ridge(y, x, k_indices, k, lambda_):
 #     fig.suptitle(title, y=1.05)
 
 
-def cross_validate_degrees(x, y, lambda_, degrees, k_fold, title):
+def cross_validate_degrees(x, y, lambda_, gamma, degrees, k_fold, title, logistic=True):
     
     accuracies, losses = [], []
     
@@ -73,16 +89,19 @@ def cross_validate_degrees(x, y, lambda_, degrees, k_fold, title):
         x_new = polynomial_expansion(x, np.arange(x.shape[1]), deg)
 
         x_train, y_train, _, _ = prepare_for_training(x_new, y, None, 0, split=False,
-                                                      logistic=False)  # Normalize/Standardize
+                                                      logistic=logistic)  # Normalize/Standardize
         k_indices = build_k_indices(y_train, k_fold)
         accs, losses_val = [], []
         for k in range(k_fold):
             try:
-                w, loss_tr, loss_val, acc = cross_validation_ridge(y_train, x_train, k_indices, k, lambda_)
+                if logistic:
+                    w, loss_tr, loss_val, acc = cross_validation_logistic(y_train, x_train, k_indices, k, lambda_, gamma)
+                else:
+                    w, loss_tr, loss_val, acc = cross_validation_ridge(y_train, x_train, k_indices, k, lambda_)
                 accs.append(acc)
                 losses_val.append(loss_val)
             except Exception as e:
-                print(deg)
+                print(e)
         accuracies.append(accs)
         losses.append(losses_val)
     

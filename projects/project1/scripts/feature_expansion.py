@@ -2,10 +2,10 @@ import numpy as np
 from data_processing import standardize_columns, normalize_columns
 
 
-def remove_unnecessary_features(x):
+def remove_unnecessary_features(x, jet_col):
     """Removes the columns (features) that have zero variance, and returns the index of kept columns"""
     std = np.std(x, axis=0)
-    to_keep = [x for x in np.where(std > 0)[0] if x != 22]  # Columns to keep have non zero variance
+    to_keep = [x for x in np.where(std > 0)[0] if x != jet_col]  # Columns to keep have non zero variance
     return x[:, to_keep], to_keep
 
 
@@ -63,21 +63,21 @@ def sqrt_expansion(x, columns):
     return np.c_[x, sqrt]
 
 
-def expand_features(x, poly_degree, print_=True):
+def expand_features(x, poly_degree,jet_col, print_=True):
     """This function expands the features of the given matrix with:
      - Polynomial expansion
      - Exponential/Log
      - Sin /Cosine
      - Sqrt
     """
-    x, _ = remove_unnecessary_features(x)
+    x, _ = remove_unnecessary_features(x, jet_col)
     
     if print_:
         print(f"Performing polynomial expansion up to degree {poly_degree}")
     col_num = x.shape[1]
     x = logarithmic_expansion(x, np.arange(col_num))
     # x = exponential_expansion(x, np.arange(col_num))
-    x = polynomial_expansion(x, np.arange(x.shape[1]), poly_degree)
+    x = polynomial_expansion(x, np.arange(col_num), poly_degree)
     #x = sinus_expansion(x, np.arange(col_num))
 
     #
