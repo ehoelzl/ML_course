@@ -1,4 +1,12 @@
 import numpy as np
+from data_processing import standardize_columns, normalize_columns
+
+
+def remove_unnecessary_features(x):
+    """Removes the columns (features) that have zero variance, and returns the index of kept columns"""
+    std = np.std(x, axis=0)
+    to_keep = [x for x in np.where(std > 0)[0] if x != 22]  # Columns to keep have non zero variance
+    return x[:, to_keep], to_keep
 
 
 def build_poly(x, degree):
@@ -28,10 +36,16 @@ def exponential_expansion(x, columns):
     return np.c_[x, exp]
 
 
-def logarithmic_expansion(x, columns):
-    """Adds columns as log(abs() + 1) of give columns"""
-    log = np.log(np.abs(x[:, columns]) + 1)
-    return np.c_[x, log]
+def logarithmic_expansion(x, cols):
+    """Adds columns as log(1 / (1+x)) and log(1+x) to all positive columns"""
+    pos_columns = np.where(np.min(x, axis=0) >= 0)[0]
+    pos_columns = [i for i in pos_columns if i in cols]
+    if len(pos_columns) == 0:
+        return x
+    
+    inv_log = np.log(1 / (1 + x[:, pos_columns]))
+    log = np.log(1 + x[:, pos_columns])
+    return np.c_[x, inv_log, log]
 
 
 def sinus_expansion(x, columns):
@@ -56,18 +70,20 @@ def expand_features(x, poly_degree, print_=True):
      - Sin /Cosine
      - Sqrt
     """
+    x, _ = remove_unnecessary_features(x)
     
     if print_:
         print(f"Performing polynomial expansion up to degree {poly_degree}")
-    
     col_num = x.shape[1]
-    
-    x = polynomial_expansion(x, np.arange(col_num), poly_degree)
-    x = exponential_expansion(x, np.arange(col_num))
     x = logarithmic_expansion(x, np.arange(col_num))
-    x = sinus_expansion(x, np.arange(col_num))
-    x = cosine_expansion(x, np.arange(col_num))
-    x = sqrt_expansion(x, np.arange(col_num))
+    # x = exponential_expansion(x, np.arange(col_num))
+    x = polynomial_expansion(x, np.arange(x.shape[1]), poly_degree)
+    #x = sinus_expansion(x, np.arange(col_num))
+
+    #
+    # x = standardize_columns(x)
+    #x = cosine_expansion(x, np.arange(col_num))
+    # x = sqrt_expansion(x, np.arange(col_num))
     
     if print_:
         print(f"Matrix has now {x.shape[1]} features")

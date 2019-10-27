@@ -10,11 +10,11 @@ def split_dataset(x, y, jet_col, mass_col):
     :return: x_0, y_0, x_1, y_1, x_2, y_2 The feature matrix and labels for each category
     """
     wm_0, nm_0 = np.where((x[:, jet_col] == 0) & (x[:, mass_col] > -999)), np.where(
-        (x[:, jet_col] == 0) & (x[:, mass_col] == -999))
+            (x[:, jet_col] == 0) & (x[:, mass_col] == -999))
     wm_1, nm_1 = np.where((x[:, jet_col] == 1) & (x[:, mass_col] > -999)), np.where(
-        (x[:, jet_col] == 1) & (x[:, mass_col] == -999))
+            (x[:, jet_col] == 1) & (x[:, mass_col] == -999))
     wm_2, nm_2 = np.where((x[:, jet_col] > 1) & (x[:, mass_col] > -999)), np.where(
-        (x[:, jet_col] > 1) & (x[:, mass_col] == -999))
+            (x[:, jet_col] > 1) & (x[:, mass_col] == -999))
     
     x_0, y_0, x_0_nm, y_0_nm = x[wm_0], y[wm_0], x[nm_0], y[nm_0]
     x_1, y_1, x_1_nm, y_1_nm = x[wm_1], y[wm_1], x[nm_1], y[nm_1]
@@ -44,7 +44,9 @@ def add_bias_column(tx):
 
 
 def prepare_for_training(tx, y, cols, train_ratio, logistic=True, split=True):
-    tx = normalize_columns(tx)
+    if logistic:
+        tx = normalize_columns(tx)
+
     tx = standardize_columns(tx)
     tx = add_bias_column(tx)
     
@@ -62,8 +64,9 @@ def prepare_for_training(tx, y, cols, train_ratio, logistic=True, split=True):
     return x_train, y_train, x_test, y_test
 
 
-def prepare_for_testing(tx):
-    tx = normalize_columns(tx)
+def prepare_for_testing(tx, logistic=True):
+    if logistic:
+        tx = normalize_columns(tx)
     tx = standardize_columns(tx)
     tx = add_bias_column(tx)
     return tx

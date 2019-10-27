@@ -3,13 +3,6 @@ import matplotlib.pyplot as plt
 from data_processing import standardize_columns
 
 
-def remove_unnecessary_features(x):
-    """Removes the columns (features) that have zero variance, and returns the index of kept columns"""
-    std = np.std(x, axis=0)
-    to_keep = [x for x in np.where(std > 0)[0] if x != 22]  # Columns to keep have non zero variance
-    return x[:, to_keep], to_keep
-
-
 def pca(x):
     corr_matrix = np.corrcoef(x.T)  # Compute correlation matrix
     eig_vals, eig_vecs = np.linalg.eig(corr_matrix)  # eigen value decomposition
@@ -52,13 +45,7 @@ def perform_pca(x, headers, threshold, plot, proj_matrix, print_=False):
     :param proj_matrix: Either a matrix (D,K) or None
     :return: The projected x matrix
     """
-    x, cols = remove_unnecessary_features(x)  # Removes features with no variance
-    headers = headers[cols]
-    if print_:
-        print(f"The {len(headers)} features remaining after filtering zero-variance features are: \n\n {headers}\n")
-
     x_std = standardize_columns(x)  # Standardize columns before PCA
-    
     if proj_matrix is None:
         eig_pairs, var_exp, cum_var_exp = pca(x_std)
         index = np.where(cum_var_exp > threshold)[0][0]
