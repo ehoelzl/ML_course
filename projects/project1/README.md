@@ -19,7 +19,7 @@ in the repository where the project was cloned
 
 `cd ML_course` and then run `jupyter notebook` or execute `python run.py` (from within `scripts/`) in your terminal
 
-
+The submission will then be generated and saved as `data/submission.csv`
 
 ## To see how we worked
 
