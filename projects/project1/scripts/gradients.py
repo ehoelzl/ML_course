@@ -1,5 +1,4 @@
 import numpy as np
-from utils import sigmoid
 
 
 def compute_mse_gradient(y: np.array, tx: np.array, w: np.array):
@@ -32,3 +31,7 @@ def compute_logistic_gradient(y: np.array, tx: np.array, w: np.array):
     pred = sigmoid(tx.dot(w))
     gradient = tx.T.dot(pred - y)
     return gradient
+
+
+def sigmoid(z):
+    return 1.0 / (1.0 + np.exp(-z))
