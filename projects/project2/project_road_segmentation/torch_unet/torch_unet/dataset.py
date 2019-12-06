@@ -6,9 +6,10 @@ import torch
 from torch.utils.data import Dataset
 import logging
 import matplotlib.image as mpimg
+from torch_unet.data_augmentation import flip, gaussian_noise, uniform_noise, elastic_transform
 
 
-class BasicDataset(Dataset):
+class TrainingSet(Dataset):
     def __init__(self, imgs_dir, masks_dir, mask_treshold, scale=1):
         self.imgs_dir = imgs_dir
         self.masks_dir = masks_dir
@@ -60,9 +61,30 @@ class BasicDataset(Dataset):
             f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
         assert len(img_file) == 1, \
             f'Either no image or multiple images found for the ID {idx}: {img_file}'
+        
         mask = mpimg.imread(mask_file[0])
         img = mpimg.imread(img_file[0])
         
+        # Flip vertically, horizontally, or both
+        flip_value = np.random.randint(0, 4)  # 0: vertical, 1: horizontal, 2: both, 3: none
+        img, mask = flip(img, flip_value), flip(mask, flip_value)
+        
+        # Add gaussian noise or uniform noise
+        add_noise = np.random.randint(0, 2) == 1
+        if add_noise:
+            noise_type = np.random.randint(0, 2)
+            if noise_type == 0:  # Uniform noise
+                lower, upper = np.random.randint(-20, 1), np.random.randint(0, 20)
+                img = uniform_noise(img, lower, upper)
+            else:  # Gaussian noise
+                mean, sd = 0, np.random.randint(0, 10)
+                img = gaussian_noise(img, mean, sd)
+        
+        elastic_trans = np.random.randint(0, 2) == 0
+        if elastic_trans:
+            alpha, sigma = np.random.randint(0, 100), np.random.randint(0, 30)
+            img = elastic_transform(img, alpha, sigma)
+            
         mask = self.preprocess_mask(mask)
         img = self.preprocess(img)
         return {'image': torch.from_numpy(img), 'mask': torch.from_numpy(mask)}

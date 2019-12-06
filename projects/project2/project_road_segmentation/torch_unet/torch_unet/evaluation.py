@@ -5,7 +5,7 @@ from torch_unet.losses import dice_coeff
 
 
 def eval_net(net, loader, device, n_val):
-    """Evaluation without the densecrf with the dice coefficient"""
+    """Evaluation with the dice coefficient"""
     net.eval()
     tot = 0
     
@@ -20,7 +20,7 @@ def eval_net(net, loader, device, n_val):
             mask_pred = net(imgs)
             
             for true_mask, pred in zip(true_masks, mask_pred):
-                pred = (pred > 0.5).float()
+                pred = (torch.sigmoid(pred) > 0.3).float()
                 tot += dice_coeff(pred, true_mask.squeeze(dim=1)).item()
             pbar.update(imgs.shape[0])
     
