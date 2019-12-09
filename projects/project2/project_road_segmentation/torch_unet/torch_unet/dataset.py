@@ -8,16 +8,17 @@ import matplotlib.image as mpimg
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from torch_unet.data_augmentation import elastic_transform, flip, gaussian_noise, normalize_image, uniform_noise
+from torch_unet.data_augmentation import augment_image
 from torch_unet.utils import show_side_by_side
 
 
 class TrainingSet(Dataset):
-    def __init__(self, imgs_dir, masks_dir, mask_treshold, scale=1):
+    def __init__(self, imgs_dir, masks_dir, mask_treshold, scale=1, augmentation=False):
         self.imgs_dir = imgs_dir
         self.masks_dir = masks_dir
         self.scale = scale
         self.mask_threshold = mask_treshold
+        self.augmentation = augmentation
         assert 0 < scale <= 1, 'Scale must be between 0 and 1'
         
         self.ids = [splitext(file)[0] for file in listdir(imgs_dir)
@@ -73,26 +74,8 @@ class TrainingSet(Dataset):
         mask = mpimg.imread(mask_file[0])
         img = mpimg.imread(img_file[0])
         
-        # Flip vertically, horizontally, or both
-        # flip_value = np.random.randint(0, 4)  # 0: vertical, 1: horizontal, 2: both, 3: none
-        # img, mask = flip(img, flip_value), flip(mask, flip_value)
-        #
-        # # Add gaussian noise or uniform noise
-        # add_noise = np.random.randint(0, 2) == 1
-        # noise_type = np.random.randint(0, 2)
-        # if add_noise:
-        #     if noise_type == 0:  # Uniform noise
-        #         lower, upper = np.random.randint(-20, 1), np.random.randint(0, 20)
-        #         img = uniform_noise(img, lower, upper)
-        #     else:  # Gaussian noise
-        #         mean, sd = 0, np.random.randint(0, 10)
-        #         img = gaussian_noise(img, mean, sd)
-        #
-        # elastic_trans = np.random.randint(0, 2) == 0
-        # if elastic_trans:
-        #     alpha, sigma = 10, np.random.randint(2, 30)
-        #     img, seed = elastic_transform(img, alpha, sigma)
-        #     mask, _ = elastic_transform(mask, alpha, sigma)
+        if self.augmentation:
+            img, mask = augment_image(img, mask)
         mask = self.preprocess_mask(mask)
         img = self.preprocess(img)
         return {'image': torch.from_numpy(img), 'mask': torch.from_numpy(mask)}
@@ -119,29 +102,15 @@ class TrainingSet(Dataset):
         img = mpimg.imread(img_file[0])
         return img
     
-    def get_image(self, i):
-        """ Returns the image as a pytorch tensor (un-altered)
-        
-        :param i:
-        :return:
-        """
-        return torch.from_numpy(self.preprocess(self.get_raw_image(i)))
-    
-    def get_mask(self, i):
-        """ Returns the mask as a pytorch tensor (un-altered)
-        
-        :param i:
-        :return:
-        """
-        return torch.from_numpy(self.preprocess_mask(self.get_raw_mask(i)))
-    
-    def show_image(self, i):
+    def show_image(self, i, augment=False):
         """ Shows the image and its mask side by side
         
         :param i:
         :return:
         """
         img, mask = self.get_raw_image(i), self.get_raw_mask(i)
+        if augment:
+            img, mask = augment_image(img, mask)
         show_side_by_side(img, mask)
 
 

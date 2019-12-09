@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import map_coordinates
+from torch_unet.image_utils import crop_3d_image, mirror_image, rotate_image
 
 
 def normalize_image(img, _min=0, _max=1):
@@ -20,15 +21,12 @@ def uniform_noise(img, _min, _max):
     return image_n
 
 
-def flip(image, option_value):
-    if option_value == 0:  # vertical
-        image = np.flip(image, option_value)
-    elif option_value == 1:  # Horizontal
-        image = np.flip(image, option_value)
-    elif option_value == 2:  # Both
-        image = np.flip(image, 0)
-        image = np.flip(image, 1)
-    return image
+def rotate_and_crop(img, angle):
+    h, w = img.shape[:2]
+    mirrored = mirror_image(img)
+    rotated = rotate_image(mirrored, angle)
+    cropped = crop_3d_image(rotated, h, w)
+    return cropped
 
 
 def elastic_transform(image, alpha, sigma, random_state=None):
@@ -49,3 +47,15 @@ def elastic_transform(image, alpha, sigma, random_state=None):
     
     distored_image = map_coordinates(image, indices, order=1, mode='reflect')
     return distored_image.reshape(image.shape), seed
+
+
+def augment_image(img, mask):
+    # Rotate by random angle
+    rotation = np.random.choice([0, 90, 180, 270])
+    if rotation > 0:
+        img, mask = rotate_image(img, rotation), rotate_image(mask, rotation)
+    
+    random_rot = np.random.choice([0, 15, 30, 45, 60, 75])
+    if random_rot > 0:
+        img, mask = rotate_and_crop(img, random_rot), rotate_and_crop(mask, random_rot)
+    return img, mask

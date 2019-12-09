@@ -42,12 +42,18 @@ def split_train_val(dataset, val_ratio, batch_size):
 @click.option("--depth", default=5)
 @click.option("--padding", is_flag=True)
 @click.option("--batch-norm", is_flag=True)
-def train_model(num_epochs=100, lr=0.001, val_ratio=0.2, depth=5, batch_size=1, img_scale=1, padding=True, batch_norm=False):
+@click.option("--augmentation", is_flag=True)
+def train_model(num_epochs=100, lr=0.001,
+                val_ratio=0.2, depth=5,
+                batch_size=1, img_scale=1,
+                padding=True, batch_norm=False, augmentation=False):
     name = f"model_depth{depth}_BS{batch_size}_epochs{num_epochs}_lr{lr}"
     if padding:
         name += "_padding"
     if batch_norm:
         name += "_batchnorm"
+    if augmentation:
+        name += "_aug"
     
     model_dir = os.path.join(models_dir, name)
     dir_checkpoint = os.path.join(model_dir, "checkpoints/")
@@ -55,7 +61,7 @@ def train_model(num_epochs=100, lr=0.001, val_ratio=0.2, depth=5, batch_size=1, 
         os.makedirs(dir_checkpoint, exist_ok=True)
     
     torch.multiprocessing.set_start_method('spawn')
-    dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_treshold=MASK_THRESHOLD)
+    dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_treshold=MASK_THRESHOLD, augmentation=augmentation)
     
     n_train, train_loader, n_val, val_loader = split_train_val(dataset, val_ratio, batch_size)
     
@@ -117,7 +123,7 @@ def train_model(num_epochs=100, lr=0.001, val_ratio=0.2, depth=5, batch_size=1, 
             logging.info(f'Checkpoint {epoch + 1} saved !')
     writer.close()
     
-    torch.save(net.state_dict(), model_dir + "final.pth")
+    torch.save(net.state_dict(), os.path.join(model_dir + "final.pth"))
 
 
 if __name__ == "__main__":
