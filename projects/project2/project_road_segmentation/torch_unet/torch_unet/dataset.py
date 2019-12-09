@@ -1,12 +1,15 @@
-from os.path import splitext
-from os import listdir
-import numpy as np
+import logging
 from glob import glob
+from os import listdir
+from os.path import splitext
+
+import cv2
+import matplotlib.image as mpimg
+import numpy as np
 import torch
 from torch.utils.data import Dataset
-import logging
-import matplotlib.image as mpimg
-from torch_unet.data_augmentation import flip, gaussian_noise, uniform_noise, elastic_transform
+from torch_unet.data_augmentation import elastic_transform, flip, gaussian_noise, normalize_image, uniform_noise
+from torch_unet.utils import show_side_by_side
 
 
 class TrainingSet(Dataset):
@@ -53,6 +56,11 @@ class TrainingSet(Dataset):
         return img_trans
     
     def __getitem__(self, i):
+        """ Gets the image with index i, and applies data augmentation randomly
+        
+        :param i: Shape is (channel, height, width) (tensor)
+        :return:
+        """
         idx = self.ids[i]
         mask_file = glob(self.masks_dir + idx + '*')
         img_file = glob(self.imgs_dir + idx + '*')
@@ -66,25 +74,120 @@ class TrainingSet(Dataset):
         img = mpimg.imread(img_file[0])
         
         # Flip vertically, horizontally, or both
-        flip_value = np.random.randint(0, 4)  # 0: vertical, 1: horizontal, 2: both, 3: none
-        img, mask = flip(img, flip_value), flip(mask, flip_value)
-        
-        # Add gaussian noise or uniform noise
-        add_noise = np.random.randint(0, 2) == 1
-        if add_noise:
-            noise_type = np.random.randint(0, 2)
-            if noise_type == 0:  # Uniform noise
-                lower, upper = np.random.randint(-20, 1), np.random.randint(0, 20)
-                img = uniform_noise(img, lower, upper)
-            else:  # Gaussian noise
-                mean, sd = 0, np.random.randint(0, 10)
-                img = gaussian_noise(img, mean, sd)
-        
-        elastic_trans = np.random.randint(0, 2) == 0
-        if elastic_trans:
-            alpha, sigma = np.random.randint(0, 100), np.random.randint(0, 30)
-            img = elastic_transform(img, alpha, sigma)
-            
+        # flip_value = np.random.randint(0, 4)  # 0: vertical, 1: horizontal, 2: both, 3: none
+        # img, mask = flip(img, flip_value), flip(mask, flip_value)
+        #
+        # # Add gaussian noise or uniform noise
+        # add_noise = np.random.randint(0, 2) == 1
+        # noise_type = np.random.randint(0, 2)
+        # if add_noise:
+        #     if noise_type == 0:  # Uniform noise
+        #         lower, upper = np.random.randint(-20, 1), np.random.randint(0, 20)
+        #         img = uniform_noise(img, lower, upper)
+        #     else:  # Gaussian noise
+        #         mean, sd = 0, np.random.randint(0, 10)
+        #         img = gaussian_noise(img, mean, sd)
+        #
+        # elastic_trans = np.random.randint(0, 2) == 0
+        # if elastic_trans:
+        #     alpha, sigma = 10, np.random.randint(2, 30)
+        #     img, seed = elastic_transform(img, alpha, sigma)
+        #     mask, _ = elastic_transform(mask, alpha, sigma)
         mask = self.preprocess_mask(mask)
         img = self.preprocess(img)
         return {'image': torch.from_numpy(img), 'mask': torch.from_numpy(mask)}
+    
+    def get_raw_image(self, i):
+        """ Returns the raw image as a numpy array
+        
+        :param i:
+        :return:
+        """
+        idx = self.ids[i]
+        img_file = glob(self.imgs_dir + idx + '*')
+        img = mpimg.imread(img_file[0])
+        return img
+    
+    def get_raw_mask(self, i):
+        """ Returns the mask as a numpy array
+        
+        :param i:
+        :return:
+        """
+        idx = self.ids[i]
+        img_file = glob(self.masks_dir + idx + '*')
+        img = mpimg.imread(img_file[0])
+        return img
+    
+    def get_image(self, i):
+        """ Returns the image as a pytorch tensor (un-altered)
+        
+        :param i:
+        :return:
+        """
+        return torch.from_numpy(self.preprocess(self.get_raw_image(i)))
+    
+    def get_mask(self, i):
+        """ Returns the mask as a pytorch tensor (un-altered)
+        
+        :param i:
+        :return:
+        """
+        return torch.from_numpy(self.preprocess_mask(self.get_raw_mask(i)))
+    
+    def show_image(self, i):
+        """ Shows the image and its mask side by side
+        
+        :param i:
+        :return:
+        """
+        img, mask = self.get_raw_image(i), self.get_raw_mask(i)
+        show_side_by_side(img, mask)
+
+
+class TestSet(Dataset):
+    
+    def __init__(self, imgs_dir, scale=1):
+        self.imgs_dir = imgs_dir
+        self.scale = scale
+        assert 0 < scale <= 1, 'Scale must be between 0 and 1'
+        
+        self.ids = [splitext(file)[0] for file in listdir(imgs_dir)
+                    if not file.startswith('.')]
+        logging.info(f'Creating dataset with {len(self.ids)} examples')
+    
+    def __len__(self):
+        return len(self.ids)
+    
+    def scale_image(self, img):
+        w, h, c = img.shape
+        if self.scale != 1:
+            newW, newH = int(self.scale * w), int(self.scale * h)
+            assert newW > 0 and newH > 0, 'Scale is too small'
+            img = cv2.resize(img, (newW, newH), interpolation=cv2.INTER_AREA)
+        return img
+    
+    def preprocess(self, img):
+        img = self.scale_image(img)
+        img = img.transpose((2, 0, 1))
+        return img
+    
+    def __getitem__(self, i):
+        idx = self.ids[i]
+        img_file = glob(self.imgs_dir + idx + '*')
+        
+        img = mpimg.imread(img_file[0])
+        
+        img = self.preprocess(img)
+        return {'image': torch.from_numpy(img), 'id': idx}
+    
+    def get_raw_image(self, i, scale=False):
+        idx = self.ids[i]
+        img_file = glob(self.imgs_dir + idx + '*')
+        img = mpimg.imread(img_file[0])
+        if scale:
+            img = self.scale_image(img)
+        return img
+    
+    def get_image(self, i):
+        return torch.as_tensor(self.preprocess(self.get_raw_image(i)))

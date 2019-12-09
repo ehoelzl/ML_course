@@ -1,35 +1,45 @@
 """ Full assembly of the parts to form the complete network """
 
+from torch.nn import ModuleList
 from torch_unet.unet.components import *
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=True):
+    def __init__(self, n_channels, n_classes, depth, init_filters=6, padding=False, batch_norm=False):
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
-        self.bilinear = bilinear
+        self.padding = padding
+        self.depth = depth
         
-        self.inc = DoubleConv(n_channels, 64)
-        self.down1 = Down(64, 128)
-        self.down2 = Down(128, 256)
-        self.down3 = Down(256, 512)
-        self.down4 = Down(512, 512)
-        self.up1 = Up(1024, 256, bilinear)
-        self.up2 = Up(512, 128, bilinear)
-        self.up3 = Up(256, 64, bilinear)
-        self.up4 = Up(128, 64, bilinear)
-        self.outc = OutConv(64, n_classes)
+        self.down_path = ModuleList()
+        self.up_path = ModuleList()
+        
+        prev_channels = n_channels
+        for i in range(depth):
+            out_channels = 2 ** (init_filters + i)
+            if i != depth - 1:
+                self.down_path.append(Down(prev_channels, out_channels, padding, batch_norm))
+            else:
+                self.down_path.append(DoubleConv(prev_channels, out_channels, padding, batch_norm))
+            prev_channels = out_channels
+        
+        for i in reversed(range(depth - 1)):
+            self.up_path.append(Up(prev_channels, 2 ** (init_filters + i), padding, batch_norm))
+            prev_channels = 2 ** (init_filters + i)
+        
+        self.out = OutConv(prev_channels, n_classes)
     
     def forward(self, x):
-        x1 = self.inc(x)
-        x2 = self.down1(x1)
-        x3 = self.down2(x2)
-        x4 = self.down3(x3)
-        x5 = self.down4(x4)
-        x = self.up1(x5, x4)
-        x = self.up2(x, x3)
-        x = self.up3(x, x2)
-        x = self.up4(x, x1)
-        logits = self.outc(x)
-        return logits
+        blocks = []
+        for i, layer in enumerate(self.down_path):
+            if i != len(self.down_path) - 1:
+                x, conv = layer(x)
+                blocks.append(conv)
+            else:
+                x = layer(x)
+        
+        for i, up in enumerate(self.up_path):
+            x = up(x, blocks[-i - 1])
+        
+        return self.out(x)

@@ -1,110 +1,114 @@
 import logging
+import os
 
 import torch
 import torch.nn as nn
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
-from torch_unet.dataset import BasicDataset
+from torch_unet.dataset import TrainingSet
 from torch_unet.evaluation import eval_net
+from torch_unet.losses import dice_loss
 from torch_unet.unet import UNet
 from tqdm import tqdm
+
+import click
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-DATADIR = "../../Datasets/training/"
+DATADIR = "../Datasets/training/"
 IMAGE_DIR = DATADIR + "images/"
 MASK_DIR = DATADIR + "groundtruth/"
 MASK_THRESHOLD = 0.25
 
-val_percent = 0.2
-batch_size = 1
-lr = 0.001
-img_scale = 1
-epochs = 5
+model_dir = "./model_base/"
+dir_checkpoint = os.path.join(model_dir, "checkpoints/")
 
 
-def main():
-    dataset = BasicDataset(IMAGE_DIR, MASK_DIR, mask_treshold=MASK_THRESHOLD)
-    n_val = int(len(dataset) * val_percent)
+def split_train_val(dataset, val_ratio, batch_size):
+    n_val = int(len(dataset) * val_ratio)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
+    return n_train, train_loader, n_val, val_loader
+
+
+@click.command()
+@click.option("--num-epochs", default=100)
+@click.option("--lr", default=0.001)
+@click.option("--batch-size", default=1)
+@click.option("--depth", default=5)
+def train_model(num_epochs=100, lr=0.001, val_ratio=0.2, depth=5, batch_size=1, img_scale=1):
+    print(num_epochs, lr, val_ratio, depth, )
+    torch.multiprocessing.set_start_method('spawn')
+    dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_treshold=MASK_THRESHOLD)
     
+    n_train, train_loader, n_val, val_loader = split_train_val(dataset, val_ratio, batch_size)
+    
+    # Register device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
-    net = UNet(n_channels=3, n_classes=1)
+    
+    net = UNet(n_channels=3, n_classes=1, depth=depth, padding=True)
     net.to(device=device)
     
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}_SCALE_{img_scale}')
     global_step = 0
     
-    optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=1e-8)
+    optimizer = optim.Adam(net.parameters(), lr=lr)
     criterion = nn.BCEWithLogitsLoss()
     
-    print("Starting")
-    for epoch in range(epochs):
+    for epoch in range(num_epochs):
         net.train()  # Sets module in training mode
         epoch_loss = 0
-        with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
+        with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{num_epochs}', unit='img') as pbar:
             for batch in train_loader:
                 imgs = batch['image']
                 true_masks = batch['mask']
-                print("loaded")
+                
                 imgs = imgs.to(device=device, dtype=torch.float32)
                 true_masks = true_masks.to(device=device, dtype=torch.float32)
-                print("done")
-                try:
-                    masks_pred = net(imgs)  # Make predictions
-                    print("lala")
-                except Exception as e :
-                    logger.info(e)
-                    raise e
                 
-                try:
-                    loss = criterion(masks_pred, true_masks)  # Evaluate loss
-                except Exception as e:
-                    print("lol")
-                    raise e
-                print("caca")
+                masks_pred = net(imgs)  # Make predictions
+                loss = criterion(masks_pred, true_masks)  # Evaluate loss
+                
                 epoch_loss += loss.item()  # Add loss to epoch
-                writer.add_scalar('Loss/train', loss.item(), global_step)
+                writer.add_scalar('Train/BCE_loss', loss.item(), global_step)
+                
+                d_loss = dice_loss(torch.sigmoid(masks_pred), true_masks)
+                writer.add_scalar('Train/Dice_loss', d_loss, global_step)
                 
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
                 
-                print("lol")
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                print("lala")
+                
                 pbar.update(imgs.shape[0])
                 global_step += 1
                 if global_step % (len(dataset) // (10 * batch_size)) == 0:
-                    val_score = eval_net(net, val_loader, device, n_val)
-                    logging.info('Validation Dice Coeff: {}'.format(val_score))
-                    writer.add_scalar('Dice/test', val_score, global_step)
+                    val_score, val_loss = eval_net(net, val_loader, device, n_val)
                     
+                    logging.info('Validation Dice Coeff: {}'.format(val_score))
+                    
+                    writer.add_scalar('Validation/Dice_coef', val_score, global_step)
+                    writer.add_scalar('Validaiton/Dice_loss', val_loss, global_step)
                     writer.add_images('images', imgs, global_step)
-                    if net.n_classes == 1:
-                        writer.add_images('masks/true', true_masks, global_step)
-                        writer.add_images('masks/pred', torch.sigmoid(masks_pred) > 0.5, global_step)
+                    writer.add_images('masks/true', true_masks, global_step)
+                    writer.add_images('masks/pred', torch.sigmoid(masks_pred), global_step)
         
-        # if save_cp:
-        #     try:
-        #         os.mkdir(dir_checkpoint)
-        #         logging.info('Created checkpoint directory')
-        #     except OSError:
-        #         pass
-        #     torch.save(net.state_dict(),
-        #                dir_checkpoint + f'CP_epoch{epoch + 1}.pth')
-        #     logging.info(f'Checkpoint {epoch + 1} saved !')
-    
+        if (epoch + 1) % 100 == 0:
+            torch.save(net.state_dict(),
+                       dir_checkpoint + f'CP_epoch{epoch + 1}.pth')
+            logging.info(f'Checkpoint {epoch + 1} saved !')
     writer.close()
+    
+    torch.save(net.state_dict(), model_dir + "final.pth")
 
 
 if __name__ == "__main__":
-    main()
+    train_model()

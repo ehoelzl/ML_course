@@ -29,6 +29,28 @@ class DiceCoeff(Function):
         return grad_input, grad_target
 
 
+def f1_score(y_true, y_pred, threshold, eps=1e-9):
+    y_pred = torch.ge(y_pred.float(), threshold).float()
+    y_true = y_true.float()
+    
+    true_positive = (y_pred * y_true).sum(dim=1)
+    precision = true_positive.div(y_pred.sum(dim=1).add(eps))
+    recall = true_positive.div(y_true.sum(dim=1).add(eps))
+    
+    return torch.mean((precision * recall).div(precision + recall + eps).mul(2))
+
+
+def dice_loss(input, target):
+    smooth = 1.
+    
+    iflat = input.view(-1)
+    tflat = target.view(-1)
+    intersection = (iflat * tflat).sum()
+    
+    return 1 - ((2. * intersection + smooth) /
+                (iflat.sum() + tflat.sum() + smooth))
+
+
 def dice_coeff(input, target):
     """Dice coeff for batches"""
     if input.is_cuda:
