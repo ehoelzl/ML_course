@@ -19,7 +19,7 @@ def eval_net(net, loader, device, n_val):
             
             mask_pred = net(imgs)
             for true_mask, pred in zip(true_masks, mask_pred):
-                pred = ((torch.sigmoid(pred) > 0.3) * 1).float()    
+                pred = ((torch.sigmoid(pred) > 0.3) * 1).float()
                 tot += dice_coeff(pred, true_mask.squeeze(dim=1)).item()
                 loss += dice_loss(pred, true_masks)
             pbar.update(imgs.shape[0])
