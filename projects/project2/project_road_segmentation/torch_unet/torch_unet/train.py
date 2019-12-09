@@ -1,6 +1,7 @@
 import logging
 import os
 
+import click
 import torch
 import torch.nn as nn
 from torch import optim
@@ -12,8 +13,6 @@ from torch_unet.losses import dice_loss
 from torch_unet.unet import UNet
 from tqdm import tqdm
 
-import click
-
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 logger = logging.getLogger()
@@ -24,8 +23,7 @@ IMAGE_DIR = DATADIR + "images/"
 MASK_DIR = DATADIR + "groundtruth/"
 MASK_THRESHOLD = 0.25
 
-model_dir = "./model_base/"
-dir_checkpoint = os.path.join(model_dir, "checkpoints/")
+models_dir = "./models/"
 
 
 def split_train_val(dataset, val_ratio, batch_size):
@@ -42,8 +40,19 @@ def split_train_val(dataset, val_ratio, batch_size):
 @click.option("--lr", default=0.001)
 @click.option("--batch-size", default=1)
 @click.option("--depth", default=5)
-def train_model(num_epochs=100, lr=0.001, val_ratio=0.2, depth=5, batch_size=1, img_scale=1):
-    print(num_epochs, lr, val_ratio, depth, )
+@click.option("--padding", is_flag=True)
+@click.option("--batch-norm", is_flag=True)
+def train_model(num_epochs=100, lr=0.001, val_ratio=0.2, depth=5, batch_size=1, img_scale=1, padding=True, batch_norm=False):
+    name = f"model_depth{depth}_BS{batch_size}_epochs{num_epochs}_lr{lr}"
+    if padding:
+        name += "_padding"
+    if batch_norm:
+        name += "_batchnorm"
+    
+    dir_checkpoint = os.path.join(models_dir, name, "checkpoints/")
+    if not os.path.exists(dir_checkpoint):
+        os.makedirs(dir_checkpoint, exist_ok=True)
+    
     torch.multiprocessing.set_start_method('spawn')
     dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_treshold=MASK_THRESHOLD)
     
@@ -53,7 +62,7 @@ def train_model(num_epochs=100, lr=0.001, val_ratio=0.2, depth=5, batch_size=1, 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
     
-    net = UNet(n_channels=3, n_classes=1, depth=depth, padding=True)
+    net = UNet(n_channels=3, n_classes=1, depth=depth, padding=True, batch_norm=batch_norm)
     net.to(device=device)
     
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}_SCALE_{img_scale}')
@@ -96,7 +105,7 @@ def train_model(num_epochs=100, lr=0.001, val_ratio=0.2, depth=5, batch_size=1, 
                     logging.info('Validation Dice Coeff: {}'.format(val_score))
                     
                     writer.add_scalar('Validation/Dice_coef', val_score, global_step)
-                    writer.add_scalar('Validaiton/Dice_loss', val_loss, global_step)
+                    writer.add_scalar('Validation/Dice_loss', val_loss, global_step)
                     writer.add_images('images', imgs, global_step)
                     writer.add_images('masks/true', true_masks, global_step)
                     writer.add_images('masks/pred', torch.sigmoid(masks_pred), global_step)
