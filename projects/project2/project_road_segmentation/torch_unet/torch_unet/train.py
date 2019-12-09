@@ -49,7 +49,8 @@ def train_model(num_epochs=100, lr=0.001, val_ratio=0.2, depth=5, batch_size=1, 
     if batch_norm:
         name += "_batchnorm"
     
-    dir_checkpoint = os.path.join(models_dir, name, "checkpoints/")
+    model_dir = os.path.join(models_dir, name)
+    dir_checkpoint = os.path.join(model_dir, "checkpoints/")
     if not os.path.exists(dir_checkpoint):
         os.makedirs(dir_checkpoint, exist_ok=True)
     

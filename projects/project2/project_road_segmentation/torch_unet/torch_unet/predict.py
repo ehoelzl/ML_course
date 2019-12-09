@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import matplotlib.image as mpimg
 import click
 from tqdm import tqdm
+
 TEST_SET = "../Datasets/test_set_images/"
 DEST_DIR = "../predictions/"
 
@@ -16,7 +17,8 @@ DEST_DIR = "../predictions/"
 @click.option("--model-depth", )
 @click.option("--padding", is_flag=True)
 @click.option("--batch-norm", is_flag=True)
-def main(model_path, model_depth, padding=True, batch_norm=False):
+@click.option("--threshold", default=0.5)
+def main(model_path, model_depth, padding=True, batch_norm=False, threshold=0.5):
     test_set = TestSet(TEST_SET, 400 / 608)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False, num_workers=2, pin_memory=True)
     
@@ -32,7 +34,7 @@ def main(model_path, model_depth, padding=True, batch_norm=False):
     for b in tqdm(test_loader, desc="Predicting"):
         preds = net(b['image'])
         
-        img = (torch.sigmoid(preds)[0][0].detach().numpy() > 0.5) * 1
+        img = (torch.sigmoid(preds)[0][0].detach().numpy() > threshold) * 1
         img = cv2.resize(img.astype('uint8'), (608, 608), interpolation=cv2.INTER_LINEAR)
         mpimg.imsave(DEST_DIR + b['id'][0] + ".png", img)
 
