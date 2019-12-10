@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import map_coordinates
-from torch_unet.image_utils import crop_3d_image, mirror_image, rotate_image
+from torch_unet.image_utils import mirror_image, rotate_image
 
 
 def normalize_image(img, _min=0, _max=1):
@@ -21,12 +21,12 @@ def uniform_noise(img, _min, _max):
     return image_n
 
 
-def rotate_and_crop(img, angle):
-    h, w = img.shape[:2]
-    mirrored = mirror_image(img)
-    rotated = rotate_image(mirrored, angle)
-    cropped = crop_3d_image(rotated, h, w)
-    return cropped
+# def rotate_and_crop(img, angle):
+#     h, w = img.shape[:2]
+#     mirrored = mirror_image(img)
+#     rotated = rotate_image(mirrored, angle)
+#     cropped = crop_3d_image(rotated, h, w)
+#     return cropped
 
 
 def elastic_transform(image, alpha, sigma, random_state=None):

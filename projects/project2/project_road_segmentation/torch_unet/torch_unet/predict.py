@@ -1,13 +1,14 @@
 import logging
-import cv2
-import torch
-from torch_unet.dataset import TestSet
-from torch_unet.unet import UNet
-from torch.utils.data import DataLoader
-import matplotlib.image as mpimg
-import click
-from tqdm import tqdm
 
+import click
+import matplotlib.image as mpimg
+import torch
+from torch.utils.data import DataLoader
+from torch_unet.dataset import TestSet
+from torch_unet.image_utils import combine_patches, get_image_patches
+from torch_unet.unet import UNet
+from tqdm import tqdm
+import gc
 TEST_SET = "../Datasets/test_set_images/"
 DEST_DIR = "../predictions/"
 
@@ -19,7 +20,7 @@ DEST_DIR = "../predictions/"
 @click.option("--batch-norm", is_flag=True)
 @click.option("--threshold", default=0.5)
 def main(model_path, model_depth, padding=True, batch_norm=False, threshold=0.5):
-    test_set = TestSet(TEST_SET, 400 / 608)
+    test_set = TestSet(TEST_SET)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False, num_workers=2, pin_memory=True)
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -32,11 +33,14 @@ def main(model_path, model_depth, padding=True, batch_norm=False, threshold=0.5)
     net.load_state_dict(state_dict=torch.load(model_path, map_location=device))
     
     for b in tqdm(test_loader, desc="Predicting"):
-        preds = net(b['image'])
+        patches = get_image_patches(b['image'], 400)
+        for idx, im_patches in enumerate(patches):
+            pred_patches = torch.sigmoid(net(im_patches))
         
-        img = (torch.sigmoid(preds)[0][0].detach().numpy() > threshold) * 1
-        img = cv2.resize(img.astype('uint8'), (608, 608), interpolation=cv2.INTER_LINEAR)
-        mpimg.imsave(DEST_DIR + b['id'][0] + ".png", img)
+            prediction = combine_patches(pred_patches, 608)
+            img = ((prediction.detach().numpy() > threshold) * 1)[0]
+            mpimg.imsave(DEST_DIR + b['id'][idx] + ".png", img)
+        gc.collect()
 
 
 if __name__ == "__main__":

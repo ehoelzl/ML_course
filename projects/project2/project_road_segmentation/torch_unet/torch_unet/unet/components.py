@@ -7,19 +7,23 @@ import torch.nn as nn
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
     
-    def __init__(self, in_channels, out_channels, padding, batch_norm=False):
+    def __init__(self, in_channels, out_channels, padding, batch_norm=False, dropout=0):
         super(DoubleConv, self).__init__()
         
         block = [nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=int(padding)), nn.ReLU()]
         
         if batch_norm:
             block.append(nn.BatchNorm2d(out_channels))
-        
+        if dropout > 0:
+            block.append(nn.Dropout2d(dropout))
         block.append(nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=int(padding)))
         block.append(nn.ReLU())
+        
         if batch_norm:
             block.append(nn.BatchNorm2d(out_channels))
         
+        if dropout > 0:
+            block.append(nn.Dropout2d(dropout))
         self.double_conv = nn.Sequential(*block)
     
     def forward(self, x):
@@ -56,8 +60,6 @@ class Up(nn.Module):
     
     def forward(self, x, bridge):
         up = self.up(x)
-        print(up.shape, bridge.shape)
-
         crop1 = self.center_crop(bridge, up.shape[2:])
         out = torch.cat([up, crop1], 1)
         out = self.conv(out)

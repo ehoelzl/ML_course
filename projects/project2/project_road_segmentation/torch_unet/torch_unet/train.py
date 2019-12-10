@@ -23,6 +23,8 @@ IMAGE_DIR = DATADIR + "images/"
 MASK_DIR = DATADIR + "groundtruth/"
 MASK_THRESHOLD = 0.25
 
+ROTATION_ANGLES = [0, 15, 30, 45]
+
 models_dir = "./models/"
 
 
@@ -43,15 +45,14 @@ def split_train_val(dataset, val_ratio, batch_size):
 @click.option("--padding", is_flag=True)
 @click.option("--batch-norm", is_flag=True)
 @click.option("--augmentation", is_flag=True)
-@click.option("--decay", default=0.)
-@click.option("--input-size", default=572)
+@click.option("--decay", is_flag=True)
+@click.option("--dropout", default=0.)
 def train_model(num_epochs=100, lr=0.001,
                 val_ratio=0.2, depth=5,
                 batch_size=1, img_scale=1,
                 padding=False, batch_norm=False,
-                augmentation=False, decay=0,
-                input_size=400):
-    name = f"model_depth{depth}_BS{batch_size}_epochs{num_epochs}_lr{lr}_input{input_size}"
+                augmentation=False, decay=False, dropout=0.):
+    name = f"model_depth{depth}_BS{batch_size}_epochs{num_epochs}_lr{lr}"
     if padding:
         name += "_padding"
     if batch_norm:
@@ -59,7 +60,9 @@ def train_model(num_epochs=100, lr=0.001,
     if augmentation:
         name += "_aug"
     if decay > 0:
-        name += f"_decay{decay}"
+        name += f"_decay"
+    if dropout > 0:
+        name += f"_dropout{dropout}"
     
     model_dir = os.path.join(models_dir, name)
     dir_checkpoint = os.path.join(model_dir, "checkpoints/")
@@ -73,21 +76,23 @@ def train_model(num_epochs=100, lr=0.001,
     logging.info(f'Using device {device}')
     
     # Load net
-    net = UNet(n_channels=3, n_classes=1, depth=depth, padding=padding, batch_norm=batch_norm)
+    net = UNet(n_channels=3, n_classes=1, depth=depth, padding=padding, batch_norm=batch_norm, dropout=dropout)
     net.to(device=device)
     
     # Load training set
-    output_height = net.get_output_size(input_size)
-    dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_threshold=MASK_THRESHOLD, input_height=input_size,
-                          output_height=output_height)
+    dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_threshold=MASK_THRESHOLD,
+                          rotation_angles=ROTATION_ANGLES if augmentation else None)
     
-    logger.info(f"Using input size {input_size}x{input_size} and output size {output_height}x{output_height}")
     n_train, train_loader, n_val, val_loader = split_train_val(dataset, val_ratio, batch_size)
     
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}_SCALE_{img_scale}')
     global_step = 0
     
-    optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=decay, )
+    optimizer = optim.Adam(net.parameters(), lr=lr)
+    scheduler = None
+    if decay:
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3000, gamma=0.99)
+        
     criterion = nn.BCEWithLogitsLoss()
     
     for epoch in range(num_epochs):
@@ -129,10 +134,12 @@ def train_model(num_epochs=100, lr=0.001,
                     writer.add_images('masks/true', true_masks, global_step)
                     writer.add_images('masks/pred', torch.sigmoid(masks_pred), global_step)
         
-        if (epoch + 1) % 100 == 0:
-            torch.save(net.state_dict(),
-                       dir_checkpoint + f'CP_epoch{epoch + 1}.pth')
-            logging.info(f'Checkpoint {epoch + 1} saved !')
+                if (global_step + 1) % 2000 == 0:
+                    torch.save(net.state_dict(),
+                               dir_checkpoint + f'CP_epoch{epoch + 1}.pth')
+                    logging.info(f'Checkpoint {epoch + 1} saved !')
+                if scheduler is not None:
+                    scheduler.step()
     writer.close()
     
     torch.save(net.state_dict(), os.path.join(model_dir, "final.pth"))
