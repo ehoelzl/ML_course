@@ -43,17 +43,23 @@ def split_train_val(dataset, val_ratio, batch_size):
 @click.option("--padding", is_flag=True)
 @click.option("--batch-norm", is_flag=True)
 @click.option("--augmentation", is_flag=True)
+@click.option("--decay", default=0.)
+@click.option("--input-size", default=572)
 def train_model(num_epochs=100, lr=0.001,
                 val_ratio=0.2, depth=5,
                 batch_size=1, img_scale=1,
-                padding=True, batch_norm=False, augmentation=False):
-    name = f"model_depth{depth}_BS{batch_size}_epochs{num_epochs}_lr{lr}"
+                padding=False, batch_norm=False,
+                augmentation=False, decay=0,
+                input_size=400):
+    name = f"model_depth{depth}_BS{batch_size}_epochs{num_epochs}_lr{lr}_input{input_size}"
     if padding:
         name += "_padding"
     if batch_norm:
         name += "_batchnorm"
     if augmentation:
         name += "_aug"
+    if decay > 0:
+        name += f"_decay{decay}"
     
     model_dir = os.path.join(models_dir, name)
     dir_checkpoint = os.path.join(model_dir, "checkpoints/")
@@ -61,21 +67,27 @@ def train_model(num_epochs=100, lr=0.001,
         os.makedirs(dir_checkpoint, exist_ok=True)
     
     torch.multiprocessing.set_start_method('spawn')
-    dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_treshold=MASK_THRESHOLD, augmentation=augmentation)
-    
-    n_train, train_loader, n_val, val_loader = split_train_val(dataset, val_ratio, batch_size)
     
     # Register device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
     
-    net = UNet(n_channels=3, n_classes=1, depth=depth, padding=True, batch_norm=batch_norm)
+    # Load net
+    net = UNet(n_channels=3, n_classes=1, depth=depth, padding=padding, batch_norm=batch_norm)
     net.to(device=device)
+    
+    # Load training set
+    output_height = net.get_output_size(input_size)
+    dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_threshold=MASK_THRESHOLD, input_height=input_size,
+                          output_height=output_height)
+    
+    logger.info(f"Using input size {input_size}x{input_size} and output size {output_height}x{output_height}")
+    n_train, train_loader, n_val, val_loader = split_train_val(dataset, val_ratio, batch_size)
     
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}_SCALE_{img_scale}')
     global_step = 0
     
-    optimizer = optim.Adam(net.parameters(), lr=lr)
+    optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=decay, )
     criterion = nn.BCEWithLogitsLoss()
     
     for epoch in range(num_epochs):
@@ -89,20 +101,20 @@ def train_model(num_epochs=100, lr=0.001,
                 imgs = imgs.to(device=device, dtype=torch.float32)
                 true_masks = true_masks.to(device=device, dtype=torch.float32)
                 
+                optimizer.zero_grad()
                 masks_pred = net(imgs)  # Make predictions
                 loss = criterion(masks_pred, true_masks)  # Evaluate loss
+                batch_loss = loss.item()
+                loss.backward()
+                optimizer.step()
                 
-                epoch_loss += loss.item()  # Add loss to epoch
-                writer.add_scalar('Train/BCE_loss', loss.item(), global_step)
+                epoch_loss += batch_loss  # Add loss to epoch
+                writer.add_scalar('Train/BCE_loss', batch_loss, global_step)
                 
                 d_loss = dice_loss(torch.sigmoid(masks_pred), true_masks)
                 writer.add_scalar('Train/Dice_loss', d_loss, global_step)
                 
-                pbar.set_postfix(**{'loss (batch)': loss.item()})
-                
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                pbar.set_postfix(**{'loss (batch)': batch_loss})
                 
                 pbar.update(imgs.shape[0])
                 global_step += 1
@@ -123,7 +135,7 @@ def train_model(num_epochs=100, lr=0.001,
             logging.info(f'Checkpoint {epoch + 1} saved !')
     writer.close()
     
-    torch.save(net.state_dict(), os.path.join(model_dir + "final.pth"))
+    torch.save(net.state_dict(), os.path.join(model_dir, "final.pth"))
 
 
 if __name__ == "__main__":

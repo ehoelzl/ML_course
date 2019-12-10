@@ -7,20 +7,16 @@ import torch.nn as nn
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
     
-    def __init__(self, in_channels, out_channels, padding, batch_norm=False, activation=True):
+    def __init__(self, in_channels, out_channels, padding, batch_norm=False):
         super(DoubleConv, self).__init__()
         
-        block = [nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=int(padding))]
-        
-        if activation:
-            block.append(nn.ReLU())
+        block = [nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=int(padding)), nn.ReLU()]
         
         if batch_norm:
             block.append(nn.BatchNorm2d(out_channels))
         
         block.append(nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=int(padding)))
-        if activation:
-            block.append(nn.ReLU())
+        block.append(nn.ReLU())
         if batch_norm:
             block.append(nn.BatchNorm2d(out_channels))
         
@@ -50,7 +46,7 @@ class Up(nn.Module):
         
         self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
         
-        self.conv = DoubleConv(in_channels, out_channels, padding, batch_norm, activation=True)
+        self.conv = DoubleConv(in_channels, out_channels, padding, batch_norm)
     
     def center_crop(self, layer, target_size):
         _, _, layer_height, layer_width = layer.size()
@@ -60,6 +56,8 @@ class Up(nn.Module):
     
     def forward(self, x, bridge):
         up = self.up(x)
+        print(up.shape, bridge.shape)
+
         crop1 = self.center_crop(bridge, up.shape[2:])
         out = torch.cat([up, crop1], 1)
         out = self.conv(out)

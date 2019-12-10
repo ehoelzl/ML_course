@@ -34,17 +34,17 @@ def crop_3d_image(img, h, w):
     return img[bounds_y[0]: bounds_y[1], bounds_x[0]:bounds_x[1], :]
 
 
-def mirror_image(img):
+def mirror_image(img, n):
     """ Mirror the image into a 3x3 matrix of images
     
     :param img:
+    :param n
     :return:
     """
-    h_flip = flip(img, 1)
-    concat = np.concatenate([h_flip, img, h_flip], axis=1)
-    v_flip = flip(concat, 0)
-    new_img = np.concatenate([v_flip, concat, v_flip], axis=0)
-    return new_img
+    if len(img.shape) == 3:
+        return np.pad(img, ((n, n), (n, n), (0, 0)), mode="symmetric")
+    else:
+        return np.pad(img, ((n, n), (n, n)), mode="symmetric")
 
 
 def flip(image, option_value):

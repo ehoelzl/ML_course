@@ -3,6 +3,8 @@
 from torch.nn import ModuleList
 from torch_unet.unet.components import *
 
+import torch
+
 
 class UNet(nn.Module):
     def __init__(self, n_channels, n_classes, depth, init_filters=6, padding=False, batch_norm=False):
@@ -43,3 +45,7 @@ class UNet(nn.Module):
             x = up(x, blocks[-i - 1])
         
         return self.out(x)
+    
+    def get_output_size(self, input_size):
+        output = self.forward(torch.randn(1, self.n_channels, input_size, input_size).cuda())
+        return output.shape[-1]
