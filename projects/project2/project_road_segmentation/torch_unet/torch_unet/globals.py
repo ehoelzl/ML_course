@@ -1,0 +1,13 @@
+NUM_CHANNELS = 3
+N_CLASSES = 1
+TRAIN_SIZE = 400
+LABEL_SIZE = 400
+TEST_SIZE = 608
+
+DATADIR = "../Datasets/training/"
+IMAGE_DIR = DATADIR + "images/"
+MASK_DIR = DATADIR + "groundtruth/"
+MODELS_DIR = "./models"
+MASK_THRESHOLD = 0.25
+
+ROTATION_ANGLES = [0, 15, 30, 45, 60, 75]

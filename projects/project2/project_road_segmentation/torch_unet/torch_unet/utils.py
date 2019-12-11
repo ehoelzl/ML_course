@@ -29,3 +29,8 @@ def show_side_by_side(img, gt, figsize=(10, 10)):
     concat = concatenate_images(img, gt)
     _, ax = plt.subplots(figsize=figsize)
     ax.imshow(concat)
+
+
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']

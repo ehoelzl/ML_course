@@ -1,1 +1,1 @@
-from .model import UNet
+from torch_unet.unet.model import *

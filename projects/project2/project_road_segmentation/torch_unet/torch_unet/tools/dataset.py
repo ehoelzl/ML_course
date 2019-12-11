@@ -7,29 +7,43 @@ import matplotlib.image as mpimg
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+from torch_unet.globals import *
 from torch_unet.image_utils import crop_image, mirror_image, rotate_image
+from torch_unet.pre_processing import get_image_patch, patches_per_image
 from torch_unet.utils import show_side_by_side
 
 
 class TrainingSet(Dataset):
-    def __init__(self, imgs_dir, masks_dir, mask_threshold, image_height=400, augmentation=False, rotation_angles=None):
+    def __init__(self, imgs_dir, masks_dir, mask_threshold, patch_size=400, step=None,
+                 rotation_angles=None):
         self.imgs_dir = imgs_dir
         self.masks_dir = masks_dir
         self.mask_threshold = mask_threshold
         
-        self.augmentation = augmentation
-        self.rotation_angles = [0] if rotation_angles is None else rotation_angles
-        self.num_rotations = len(self.rotation_angles)
-        self.image_height = image_height
-        self.padding = int(np.ceil(self.image_height * (np.sqrt(2) - 1) / 2))
+        # Patch size for patching
+        self.patch_size = patch_size
+        self.step = step  # If no step is specified, no overlapping patches
         
+        self.patches_per_image = patches_per_image((TRAIN_SIZE, TRAIN_SIZE, NUM_CHANNELS), patch_size=patch_size,
+                                                   step=step)
+        # Rotation angles for augmentation
+        self.rotation_angles = [0] if rotation_angles is None else rotation_angles
+        # Amount for image mirroring to not lose borders when rotating
+        self.rotation_padding = int(np.ceil(self.patch_size * (np.sqrt(2) - 1) / 2))
+        
+        self.scale_factor = self.patches_per_image * len(self.rotation_angles)
         self.ids = [splitext(file)[0] for file in listdir(imgs_dir)
                     if not file.startswith('.')]
         
-        logging.info(f'Creating dataset with {len(self.ids)} examples')
+        logging.info(f"Created dataset from {len(self.ids)} original images, scale factor {self.scale_factor}, "
+                     f"patch size {patch_size}, step {step}, rotations {self.rotation_angles}, "
+                     f"total images {self.scale_factor * len(self.ids)}")
     
     def __len__(self):
-        return len(self.ids) * len(self.rotation_angles)
+        return len(self.ids) * self.scale_factor
+    
+    def get_real_length(self):
+        return len(self.ids)
     
     def preprocess(self, img):
         w, h, _ = img.shape
@@ -56,14 +70,14 @@ class TrainingSet(Dataset):
         return img_trans
     
     def get_rotated_img_and_mask(self, img, mask, i):
-        rotation = self.rotation_angles[i % self.num_rotations]
+        rotation = self.rotation_angles[i]
         if rotation == 0:
             return img, mask
-        new_img = rotate_image(mirror_image(img, self.padding), rotation)
-        new_mask = rotate_image(mirror_image(mask, self.padding), rotation)
+        new_img = rotate_image(mirror_image(img, self.rotation_padding), rotation)
+        new_mask = rotate_image(mirror_image(mask, self.rotation_padding), rotation)
         
-        new_img = crop_image(new_img, self.image_height, self.image_height)
-        new_mask = crop_image(new_mask, self.image_height, self.image_height)
+        new_img = crop_image(new_img, self.patch_size, self.patch_size)
+        new_mask = crop_image(new_mask, self.patch_size, self.patch_size)
         return new_img, new_mask
     
     def __getitem__(self, i):
@@ -72,7 +86,12 @@ class TrainingSet(Dataset):
         :param i: Shape is (channel, height, width) (tensor)
         :return:
         """
-        idx = self.ids[i // self.num_rotations]
+        img_idx = i // self.scale_factor
+        rest = i - img_idx * self.scale_factor
+        patch_idx = rest // len(self.rotation_angles)
+        rotation_idx = (rest - patch_idx * len(self.rotation_angles)) % len(self.rotation_angles)
+        
+        idx = self.ids[img_idx]
         mask_file = glob(self.masks_dir + idx + '*')
         img_file = glob(self.imgs_dir + idx + '*')
         
@@ -84,7 +103,9 @@ class TrainingSet(Dataset):
         mask = mpimg.imread(mask_file[0])
         img = mpimg.imread(img_file[0])
         
-        img, mask = self.get_rotated_img_and_mask(img, mask, i)
+        img_patch = get_image_patch(img, self.patch_size, patch_idx, self.step)
+        mask_patch = get_image_patch(mask, self.patch_size, patch_idx, self.step)
+        img, mask = self.get_rotated_img_and_mask(img_patch, mask_patch, rotation_idx)
         
         mask = self.preprocess_mask(mask)
         img = self.preprocess(img)
@@ -110,7 +131,7 @@ class TrainingSet(Dataset):
         idx = self.ids[i]
         img_file = glob(self.masks_dir + idx + '*')
         img = mpimg.imread(img_file[0])
-        return img
+        return (img >= self.mask_threshold) * 1
     
     def show_image(self, i):
         """ Shows the image and its mask side by side
