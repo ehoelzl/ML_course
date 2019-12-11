@@ -92,8 +92,8 @@ class TrainingSet(Dataset):
         rotation_idx = (rest - patch_idx * len(self.rotation_angles)) % len(self.rotation_angles)
         
         idx = self.ids[img_idx]
-        mask_file = glob(self.masks_dir + idx + '*')
-        img_file = glob(self.imgs_dir + idx + '*')
+        mask_file = glob(self.masks_dir + idx + '.png')
+        img_file = glob(self.imgs_dir + idx + '.png')
         
         assert len(mask_file) == 1, \
             f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
@@ -161,8 +161,8 @@ class TestSet(Dataset):
     
     def __getitem__(self, i):
         idx = self.ids[i]
-        img_file = glob(self.imgs_dir + idx + '*')
-        
+        img_file = glob(self.imgs_dir + idx + ".png")
+        assert len(img_file) == 1
         img = mpimg.imread(img_file[0])
         
         img = self.preprocess(img)
@@ -170,7 +170,8 @@ class TestSet(Dataset):
     
     def get_raw_image(self, i):
         idx = self.ids[i]
-        img_file = glob(self.imgs_dir + idx + '*')
+        img_file = glob(self.imgs_dir + idx + ".png")
+        assert len(img_file) == 1
         img = mpimg.imread(img_file[0])
         return img
     

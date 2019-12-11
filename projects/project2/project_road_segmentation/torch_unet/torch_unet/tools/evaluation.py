@@ -46,4 +46,4 @@ def eval_net_full(net, loader, patch_size, step, device, ratio):
             tot += dice_coeff(prediction, true_mask).item()
             loss += dice_loss(prediction, true_mask).item()
             pbar.update(i)
-    return tot / num_images, loss / num_images, torch.from_numpy(img.transpose((2, 1, 0))), true_mask, prediction
+    return tot / num_images, loss / num_images, torch.from_numpy(img.transpose((2, 0, 1))), true_mask, prediction
