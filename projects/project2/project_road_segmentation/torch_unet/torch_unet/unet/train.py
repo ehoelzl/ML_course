@@ -1,8 +1,9 @@
 import os
 
+import numpy as np
 import torch
-from tools.evaluation import eval_net, eval_net_full
-from tools.losses import dice_loss
+from torch_unet.tools.evaluation import eval_net, eval_net_full
+from torch_unet.tools.losses import dice_loss
 from torch_unet.utils import get_lr
 from tqdm import tqdm
 
@@ -65,28 +66,32 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
                     writer.add_images('masks/true', true_masks, global_step)
                     writer.add_images('masks/pred', torch.sigmoid(masks_pred), global_step)
                     
-                    if lr_scheduler is not None:
-                        lr_scheduler.step(int(val_loss * 1000))
-                        writer.add_scalar("LR", get_lr(optimizer), global_step)
+                    # if lr_scheduler is not None:
+                    #     lr_scheduler.step(int(val_loss * 1000))
+                    #     writer.add_scalar("LR", get_lr(optimizer), global_step)
                 
-                if global_step % 500 == 0:
+                if global_step % 300 == 0:
                     net.eval()
                     val_full_score, val_full_loss, img, true_mask, mask_pred = eval_net_full(net, val_loader, patch_size,
                                                                                              step, device, val_ratio)
+                    print(img[None, :, :, :].shape, true_mask[None, :, :, :].shape, mask_pred[None, :, :, :].shape)
                     net.train()
                     
                     logger.info('Full Validation Dice Coeff: {}'.format(val_full_score))
                     writer.add_scalar('Full_Validation/Dice_coef', val_full_score, global_step)
                     writer.add_scalar('Full_Validation/Dice_loss', val_full_loss, global_step)
                     
-                    writer.add_images('full_images', imgs, global_step)
-                    writer.add_images('full_masks/true', true_mask, global_step)
-                    writer.add_images('full_masks/pred', masks_pred, global_step)
+                    writer.add_images('full_images', img[None, :, :, :], global_step)
+                    writer.add_images('full_masks/true', true_mask[None, :, :, :], global_step)
+                    writer.add_images('full_masks/pred', mask_pred[None, :, :, :], global_step)
                 
                 if (global_step + 1) % SAVE_EVERY == 0:
                     torch.save(net.state_dict(),
                                dir_checkpoint + f'CP_epoch{epoch + 1}.pth')
                     logger.info(f'Checkpoint {epoch + 1} saved !')
-    
+        
+        if lr_scheduler is not None:
+            lr_scheduler.step(np.mean(epoch_loss) * 1000)
+            writer.add_scalar("LR", get_lr(optimizer), global_step)
     writer.close()
     torch.save(net.state_dict(), os.path.join(dir_checkpoint, "final.pth"))

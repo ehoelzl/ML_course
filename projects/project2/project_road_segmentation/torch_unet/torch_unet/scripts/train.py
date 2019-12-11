@@ -6,8 +6,8 @@ import torch.nn as nn
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
-from tools.dataset import TrainingSet
 from torch_unet.globals import *
+from torch_unet.tools.dataset import TrainingSet
 from torch_unet.unet import UNet
 from torch_unet.unet.train import train_model
 

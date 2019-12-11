@@ -8,8 +8,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torch_unet.globals import *
-from torch_unet.image_utils import crop_image, mirror_image, rotate_image
 from torch_unet.pre_processing import get_image_patch, patches_per_image
+from torch_unet.pre_processing.image_utils import crop_image, mirror_image, rotate_image
 from torch_unet.utils import show_side_by_side
 
 

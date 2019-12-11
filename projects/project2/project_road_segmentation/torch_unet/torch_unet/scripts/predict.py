@@ -4,8 +4,8 @@ import logging
 import click
 import matplotlib.image as mpimg
 import torch
-from tools.dataset import TestSet
 from torch_unet.globals import *
+from torch_unet.tools.dataset import TestSet
 from torch_unet.unet import UNet
 from torch_unet.unet.predict import predict_full_image
 from tqdm import tqdm
