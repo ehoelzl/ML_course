@@ -1,9 +1,8 @@
 import numpy as np
 import torch
-from torch_unet.globals import *
 from torch_unet.tools.losses import dice_coeff, dice_loss
-from torch_unet.unet.predict import predict_full_image
 from tqdm import tqdm
+from torch_unet.unet.model import predict_full_image
 
 
 def eval_net(net, loader, device, n_val):
@@ -29,21 +28,21 @@ def eval_net(net, loader, device, n_val):
     return tot / n_val, loss / n_val
 
 
-def eval_net_full(net, loader, patch_size, step, device, ratio):
+def eval_net_full(net, loader, device, ratio):
     tot = 0
     loss = 0
     dataset = loader.dataset.dataset
     num_images = int(ratio * dataset.get_real_length())
     image_idx = np.random.choice(np.arange(0, dataset.get_real_length()), num_images)
-    print(len(image_idx))
+    
     with tqdm(total=num_images, desc="Full Validation round", unit="img", leave=False) as pbar:
         for i in image_idx:
             img, true_mask = dataset.get_raw_image(i), dataset.get_raw_mask(i)
-            prediction = predict_full_image(net, img, patch_size, step, TRAIN_SIZE, device)
-            prediction = torch.from_numpy(np.expand_dims((prediction > 0.3) * 1, 0)).to(device=device).float()
+            prediction = predict_full_image(net, img, device)
+            prediction = torch.from_numpy(prediction).to(device=device).float()
             true_mask = torch.from_numpy(np.expand_dims(true_mask, 0)).to(device=device).float()
             
-            tot += dice_coeff(prediction, true_mask).item()
+            tot += dice_coeff(((prediction > 0.3) * 1).float(), true_mask).item()
             loss += dice_loss(prediction, true_mask).item()
             pbar.update(i)
     return tot / num_images, loss / num_images, torch.from_numpy(img.transpose((2, 0, 1))), true_mask, prediction

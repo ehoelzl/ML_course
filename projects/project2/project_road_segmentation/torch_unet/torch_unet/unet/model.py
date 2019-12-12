@@ -1,4 +1,5 @@
 """ Full assembly of the parts to form the complete network """
+import numpy as np
 
 from torch.nn import ModuleList
 from torch_unet.unet.components import *
@@ -43,3 +44,12 @@ class UNet(nn.Module):
             x = up(x, blocks[-i - 1])
         
         return self.out(x)
+
+
+def predict_full_image(net, img, device):
+    img = np.transpose(img, (2, 0, 1))  # Transpose to get (n, c, h, w)
+    img = img[None, :, :, :]
+    img = torch.from_numpy(img).to(device=device, dtype=torch.float32)
+    
+    prediction = torch.sigmoid(net(img)).cpu().detach().numpy().squeeze(1)
+    return prediction

@@ -11,7 +11,7 @@ SAVE_EVERY = 2000
 
 
 def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, val_loader, dir_checkpoint, logger, n_train,
-                n_val, batch_size, writer, val_ratio, patch_size, step):
+                n_val, batch_size, writer, val_ratio):
     torch.multiprocessing.set_start_method('spawn')
     # Register device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -31,10 +31,10 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
             for batch in train_loader:
                 imgs = batch['image']
                 true_masks = batch['mask']
-                
                 imgs = imgs.to(device=device, dtype=torch.float32)
                 true_masks = true_masks.to(device=device, dtype=torch.float32)
                 
+
                 # Optimization step
                 optimizer.zero_grad()
                 masks_pred = net(imgs)  # Make predictions
@@ -72,9 +72,8 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
                 
                 if global_step % 300 == 0:
                     net.eval()
-                    val_full_score, val_full_loss, img, true_mask, mask_pred = eval_net_full(net, val_loader, patch_size,
-                                                                                             step, device, val_ratio)
-                    print(img[None, :, :, :].shape, true_mask[None, :, :, :].shape, mask_pred[None, :, :, :].shape)
+                    val_full_score, val_full_loss, img, true_mask, mask_pred = eval_net_full(net, val_loader, device,
+                                                                                             val_ratio)
                     net.train()
                     
                     logger.info('Full Validation Dice Coeff: {}'.format(val_full_score))

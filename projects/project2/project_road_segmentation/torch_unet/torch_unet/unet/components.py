@@ -12,7 +12,7 @@ class DoubleConv(nn.Module):
         
         block = []
         if batch_norm:
-            block.append(nn.BatchNorm2d(out_channels))
+            block.append(nn.BatchNorm2d(in_channels))
             
         block += [nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=int(padding)), nn.ReLU()]
         if dropout > 0:

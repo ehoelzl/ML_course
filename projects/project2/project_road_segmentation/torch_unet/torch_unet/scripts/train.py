@@ -77,7 +77,7 @@ def train(epochs, lr, decay, val_ratio, batch_size, patch_size, step, depth, num
         lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, verbose=True)
     
     train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, val_loader, dir_checkpoint, logger, n_train,
-                n_val, batch_size, writer, val_ratio, patch_size, int(step))
+                n_val, batch_size, writer, val_ratio)
 
 
 if __name__ == "__main__":

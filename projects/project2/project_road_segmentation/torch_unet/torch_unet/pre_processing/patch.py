@@ -54,7 +54,7 @@ def get_image_patch(img, patch_size, i, step=None):
 
 def merge_patches(patches, step, shape):
     if step is None:
-        return patches
+        return patches[0]
     num_patches, patch_size, _ = patches.shape
     patches_per_side = np.sqrt(num_patches)
     assert patches_per_side % 1 == 0
