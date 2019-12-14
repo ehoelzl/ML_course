@@ -6,7 +6,8 @@ from torch_unet.unet.components import *
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, depth, init_filters=6, padding=False, batch_norm=False, dropout=0.):
+    def __init__(self, n_channels, n_classes, depth, init_filters=6, padding=False, batch_norm=False, dropout=0.,
+                 leaky=False):
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
@@ -20,13 +21,17 @@ class UNet(nn.Module):
         for i in range(depth):
             out_channels = 2 ** (init_filters + i)
             if i != depth - 1:
-                self.down_path.append(Down(prev_channels, out_channels, padding, batch_norm))
+                # Only add dilation after Max pool layers
+                self.down_path.append(Down(in_channels=prev_channels, out_channels=out_channels,
+                                           padding=padding, batch_norm=batch_norm, leaky=leaky))
             else:
-                self.down_path.append(DoubleConv(prev_channels, out_channels, padding, batch_norm, dropout=dropout))
+                # Add dropout at end of contracting path (according to paper)
+                self.down_path.append(DoubleConv(in_channels=prev_channels, out_channels=out_channels,
+                                                 padding=padding, batch_norm=batch_norm, dropout=dropout, leaky=leaky))
             prev_channels = out_channels
         
         for i in reversed(range(depth - 1)):
-            self.up_path.append(Up(prev_channels, 2 ** (init_filters + i), padding, batch_norm))
+            self.up_path.append(Up(prev_channels, 2 ** (init_filters + i), padding, batch_norm, leaky=leaky))
             prev_channels = 2 ** (init_filters + i)
         
         self.out = OutConv(prev_channels, n_classes)

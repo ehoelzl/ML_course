@@ -1,5 +1,5 @@
-from skimage.util import view_as_windows
 import numpy as np
+from skimage.util import view_as_windows
 
 
 def flatten_patches(patches):
@@ -15,7 +15,7 @@ def extract_patches_with_step(img, patch_size, step):
         shape = (patch_size, patch_size, 3)
     else:
         raise ValueError("Image must be of dimension 2 or 3")
-
+    
     overlapped_patches = view_as_windows(img, shape, step)
     if len(img.shape) == 3:
         overlapped_patches = overlapped_patches.squeeze(2)  # Remove additional dimension

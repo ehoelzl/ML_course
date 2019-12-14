@@ -7,6 +7,10 @@ TEST_SIZE = 608
 DATADIR = "../Datasets/training/"
 IMAGE_DIR = DATADIR + "images/"
 MASK_DIR = DATADIR + "groundtruth/"
+
+TEST_SET = "../Datasets/test_set_images/"
+DEST_DIR = "../predictions/"
+
 MODELS_DIR = "./models"
 MASK_THRESHOLD = 0.25
 

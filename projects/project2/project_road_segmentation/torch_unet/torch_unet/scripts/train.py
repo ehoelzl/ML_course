@@ -21,8 +21,9 @@ def split_train_val(dataset, val_ratio, batch_size):
     return n_train, train_loader, n_val, val_loader
 
 
-def get_model_dir(patch_size, step, depth, batch_size, lr, decay, padding, batch_norm, dropout, augmentation):
-    name = f"depth{depth}_BS{batch_size}_lr{lr}_PS{patch_size}_ST{step}"
+def get_model_dir(patch_size, step, depth, batch_size, lr, decay, padding, batch_norm,
+                  dropout, augmentation, init_filters, leaky):
+    name = f"depth{depth}_BS{batch_size}_lr{lr}_PS{patch_size}_ST{step}_WF{init_filters}"
     if padding:
         name += "_padding"
     if batch_norm:
@@ -33,6 +34,8 @@ def get_model_dir(patch_size, step, depth, batch_size, lr, decay, padding, batch
         name += f"_decay"
     if dropout > 0:
         name += f"_dropout{dropout}"
+    if leaky:
+        name += "_leaky"
     
     model_dir = os.path.join(MODELS_DIR, name)
     dir_checkpoint = os.path.join(model_dir, "checkpoints/")
@@ -47,18 +50,19 @@ def get_model_dir(patch_size, step, depth, batch_size, lr, decay, padding, batch
 @click.option("--decay", is_flag=True)
 @click.option("--val-ratio", default=0.2)
 @click.option("--batch-size", default=1)
-@click.option("--patch-size", default=400)
-@click.option("--step", default=None)
+@click.option("--patch-size", default=80)
+@click.option("--step", default=20)
 @click.option("--depth", default=4)
 @click.option("--num-filters", default=4)
 @click.option("--padding", is_flag=True)
 @click.option("--batch-norm", is_flag=True)
 @click.option("--dropout", default=0.)
+@click.option("--leaky", is_flag=True)
 @click.option("--augmentation", is_flag=True)
 def train(epochs, lr, decay, val_ratio, batch_size, patch_size, step, depth, num_filters, padding, batch_norm, dropout,
-          augmentation):
+          leaky, augmentation):
     dir_checkpoint, name = get_model_dir(patch_size, step, depth, batch_size, lr, decay, padding, batch_norm, dropout,
-                                         augmentation)
+                                         augmentation, num_filters, leaky)
     
     dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_threshold=MASK_THRESHOLD,
                           rotation_angles=ROTATION_ANGLES if augmentation else None, patch_size=patch_size, step=int(step))
@@ -68,10 +72,11 @@ def train(epochs, lr, decay, val_ratio, batch_size, patch_size, step, depth, num
     writer = SummaryWriter(comment=name)
     
     net = UNet(n_channels=NUM_CHANNELS, n_classes=N_CLASSES, depth=depth, init_filters=num_filters, padding=padding,
-               batch_norm=batch_norm, dropout=dropout)
+               batch_norm=batch_norm, dropout=dropout, leaky=leaky)
     
     optimizer = optim.Adam(net.parameters(), lr=lr)
     criterion = nn.BCEWithLogitsLoss()
+    
     lr_scheduler = None
     if decay:
         lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, verbose=True)

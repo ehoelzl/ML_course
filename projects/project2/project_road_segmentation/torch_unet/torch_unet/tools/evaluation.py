@@ -41,7 +41,7 @@ def eval_net_full(net, loader, device, ratio):
             prediction = predict_full_image(net, img, device)
             prediction = torch.from_numpy(prediction).to(device=device).float()
             true_mask = torch.from_numpy(np.expand_dims(true_mask, 0)).to(device=device).float()
-            
+
             tot += dice_coeff(((prediction > 0.3) * 1).float(), true_mask).item()
             loss += dice_loss(prediction, true_mask).item()
             pbar.update(i)
