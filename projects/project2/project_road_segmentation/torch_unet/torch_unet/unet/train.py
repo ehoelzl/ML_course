@@ -16,7 +16,6 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
     # Register device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f'Using device {device}')
-    
     # Create the Network
     
     net.to(device=device)
@@ -34,7 +33,6 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
                 imgs = imgs.to(device=device, dtype=torch.float32)
                 true_masks = true_masks.to(device=device, dtype=torch.float32)
                 
-
                 # Optimization step
                 optimizer.zero_grad()
                 masks_pred = net(imgs)  # Make predictions
@@ -54,7 +52,7 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
                 global_step += 1
                 
                 # Validation every 10 batches
-                if global_step % (dataset_length // (10 * batch_size)) == 0:
+                if global_step % (dataset_length // (10 * batch_size)) == 0 and n_val > 0:
                     net.eval()
                     val_score, val_loss = eval_net(net, val_loader, device, n_val)
                     net.train()  # Reset in training mode
@@ -70,7 +68,7 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
                     #     lr_scheduler.step(int(val_loss * 1000))
                     #     writer.add_scalar("LR", get_lr(optimizer), global_step)
                 
-                if global_step % 300 == 0:
+                if global_step % 300 == 0 and n_val > 0:
                     net.eval()
                     val_full_score, val_full_loss, img, true_mask, mask_pred = eval_net_full(net, val_loader, device,
                                                                                              val_ratio)
@@ -90,7 +88,8 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
                     logger.info(f'Checkpoint {epoch + 1} saved !')
         
         if lr_scheduler is not None:
-            lr_scheduler.step(int(np.mean(epoch_loss) * 1000))
+            lr_scheduler.step(int(epoch_loss * 1000))
             writer.add_scalar("LR", get_lr(optimizer), global_step)
+            
     writer.close()
     torch.save(net.state_dict(), os.path.join(dir_checkpoint, "final.pth"))

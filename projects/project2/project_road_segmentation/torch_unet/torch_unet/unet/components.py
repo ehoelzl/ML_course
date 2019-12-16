@@ -7,27 +7,23 @@ import torch.nn as nn
 class DoubleConv(nn.Module):
     """(BN => convolution => ReLU) * 2 + Dropout"""
     
-    def __init__(self, in_channels, out_channels, padding, batch_norm=False, dropout=0, leaky=False):
+    def __init__(self, in_channels, out_channels, padding, batch_norm=False, leaky=False):
         super(DoubleConv, self).__init__()
         
-        # First conv
-        block = [nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=int(padding)),
-                 nn.LeakyReLU() if leaky else nn.ReLU()]
-        
+        block = []
         if batch_norm:
-            block.append(nn.BatchNorm2d(out_channels))
+            block.append(nn.BatchNorm2d(in_channels))
         
-        if dropout > 0:
-            block.append(nn.Dropout2d(dropout))
-        
-        block += [nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=int(padding)),
+        # First conv
+        block += [nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=int(padding)),
                   nn.LeakyReLU() if leaky else nn.ReLU()]
         
         if batch_norm:
             block.append(nn.BatchNorm2d(out_channels))
         
-        if dropout > 0:
-            block.append(nn.Dropout2d(dropout))
+        block += [nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=int(padding)),
+                  nn.LeakyReLU() if leaky else nn.ReLU()]
+        
         self.double_conv = nn.Sequential(*block)
     
     def forward(self, x):
@@ -36,16 +32,22 @@ class DoubleConv(nn.Module):
 
 
 class Down(nn.Module):
-    def __init__(self, in_channels, out_channels, padding, batch_norm=False, leaky=False):
+    def __init__(self, in_channels, out_channels, padding, batch_norm=False, leaky=False, dropout=False):
         super(Down, self).__init__()
         
         self.conv = DoubleConv(in_channels=in_channels, out_channels=out_channels,
                                padding=padding, batch_norm=batch_norm, leaky=leaky)
+        self.dropout = None
+        if dropout > 0:
+            self.dropout = nn.Dropout2d(dropout)
         self.max_pool = nn.MaxPool2d(2)
     
     def forward(self, x):
         conved = self.conv(x)
-        return self.max_pool(conved), conved
+        bridge = conved.clone()
+        if self.dropout is not None:
+            conved = self.dropout(conved)
+        return self.max_pool(conved), bridge
 
 
 class Up(nn.Module):
@@ -59,15 +61,8 @@ class Up(nn.Module):
         self.conv = DoubleConv(in_channels=in_channels, out_channels=out_channels,
                                padding=padding, batch_norm=batch_norm, leaky=leaky)
     
-    def center_crop(self, layer, target_size):
-        _, _, layer_height, layer_width = layer.size()
-        diff_y = (layer_height - target_size[0]) // 2
-        diff_x = (layer_width - target_size[1]) // 2
-        return layer[:, :, diff_y: (diff_y + target_size[0]), diff_x: (diff_x + target_size[1])]
-    
     def forward(self, x, bridge):
         up = self.up(x)
-        # crop1 = self.center_crop(bridge, up.shape[2:])
         out = torch.cat([up, bridge], 1)
         out = self.conv(out)
         

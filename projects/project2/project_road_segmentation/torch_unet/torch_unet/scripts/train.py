@@ -50,10 +50,10 @@ def get_model_dir(patch_size, step, depth, batch_size, lr, decay, padding, batch
 @click.option("--decay", is_flag=True)
 @click.option("--val-ratio", default=0.2)
 @click.option("--batch-size", default=1)
-@click.option("--patch-size", default=80)
-@click.option("--step", default=20)
+@click.option("--patch-size", default=400)
+@click.option("--step", default=None)
 @click.option("--depth", default=4)
-@click.option("--num-filters", default=4)
+@click.option("--num-filters", default=16)
 @click.option("--padding", is_flag=True)
 @click.option("--batch-norm", is_flag=True)
 @click.option("--dropout", default=0.)
@@ -65,7 +65,8 @@ def train(epochs, lr, decay, val_ratio, batch_size, patch_size, step, depth, num
                                          augmentation, num_filters, leaky)
     
     dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_threshold=MASK_THRESHOLD,
-                          rotation_angles=ROTATION_ANGLES if augmentation else None, patch_size=patch_size, step=int(step))
+                          rotation_angles=ROTATION_ANGLES if augmentation else None, patch_size=patch_size,
+                          step=step if step is None else int(step))
     
     n_train, train_loader, n_val, val_loader = split_train_val(dataset, val_ratio, batch_size)
     

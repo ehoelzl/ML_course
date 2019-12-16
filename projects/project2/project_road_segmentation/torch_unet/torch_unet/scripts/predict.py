@@ -14,7 +14,7 @@ from tqdm import tqdm
 @click.option("--model-path")
 @click.option("--model-depth")
 @click.option("--padding", is_flag=True)
-@click.option("--num-filters", default=4)
+@click.option("--num-filters", default=16)
 @click.option("--batch-norm", is_flag=True)
 @click.option("--dropout", default=0.)
 @click.option("--leaky", is_flag=True)

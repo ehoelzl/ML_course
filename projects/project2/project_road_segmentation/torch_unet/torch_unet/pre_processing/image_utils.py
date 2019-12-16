@@ -47,6 +47,12 @@ def mirror_image(img, n):
         return np.pad(img, ((n, n), (n, n)), mode="symmetric")
 
 
+def rotate_and_crop(img, angle, padding, patch_size):
+    mirrored = mirror_image(img, padding)
+    rotated = rotate_image(mirrored, angle)
+    return crop_image(rotated, patch_size, patch_size)
+
+
 def flip(image, option_value):
     if option_value == 0:  # vertical
         image = np.flip(image, option_value)
