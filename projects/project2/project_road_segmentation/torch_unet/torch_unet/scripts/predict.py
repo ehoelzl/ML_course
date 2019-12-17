@@ -33,7 +33,7 @@ def main(model_path, model_depth, padding, num_filters, batch_norm, dropout, lea
     
     net_1.load_state_dict(state_dict=torch.load(model_path, map_location=device))
     
-    if model_path_2 is not None
+    if model_path_2 is not None:
         net_2 = UNet(n_channels=NUM_CHANNELS, n_classes=N_CLASSES, depth=int(model_depth), padding=padding,
                      batch_norm=batch_norm,
                      init_filters=num_filters, dropout=dropout, leaky=leaky)
