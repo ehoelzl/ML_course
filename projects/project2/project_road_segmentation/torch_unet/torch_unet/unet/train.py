@@ -1,17 +1,17 @@
 import os
 
+import numpy as np
 import torch
+from torch_unet.globals import SAVE_EVERY
 from torch_unet.tools.evaluation import eval_net, eval_net_full
 from torch_unet.tools.losses import dice_loss
 from torch_unet.utils import get_lr
 from tqdm import tqdm
 
-SAVE_EVERY = 2000
-
 
 def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, val_loader, dir_checkpoint, logger, n_train,
-                n_val, batch_size, writer, val_ratio):
-    #torch.multiprocessing.set_start_method('spawn')
+                n_val, batch_size, writer, val_ratio, balance_classes):
+    # torch.multiprocessing.set_start_method('spawn')
     # Register device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f'Using device {device}')
@@ -24,14 +24,18 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
     
     for epoch in range(epochs):
         net.train()  # Sets module in training mode
-        epoch_loss = 0
+        epoch_loss = []
         with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
             for batch in train_loader:
                 imgs = batch['image']
                 true_masks = batch['mask']
                 imgs = imgs.to(device=device, dtype=torch.float32)
                 true_masks = true_masks.to(device=device, dtype=torch.float32)
-                
+
+                if balance_classes:
+                    # Neg / pos to rectify class imbalance
+                    pos_weight = torch.sum(torch.abs(true_masks - 1)) / torch.sum(true_masks)
+                    criterion.pos_weight = torch.tensor([pos_weight]).to(device=device, dtype=torch.float32)
                 # Optimization step
                 optimizer.zero_grad()
                 masks_pred = net(imgs)  # Make predictions
@@ -41,7 +45,7 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
                 optimizer.step()
                 
                 # Add data to tensorboard
-                epoch_loss += batch_loss  # Add loss to epoch
+                epoch_loss.append(batch_loss)  # Add loss to epoch
                 writer.add_scalar('Train/BCE_loss', batch_loss, global_step)
                 d_loss = dice_loss(torch.sigmoid(masks_pred), true_masks)
                 writer.add_scalar('Train/Dice_loss', d_loss, global_step)
@@ -87,7 +91,9 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
                     logger.info(f'Checkpoint {epoch + 1} saved !')
         
         if lr_scheduler is not None:
-            lr_scheduler.step(int(epoch_loss * 1000))
+            ep_loss = int(np.mean(epoch_loss) * 1000)
+            lr_scheduler.step(ep_loss)
+            writer.add_scalar("LR/epoch_loss", epoch_loss)
             writer.add_scalar("LR", get_lr(optimizer), global_step)
     
     writer.close()

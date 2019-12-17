@@ -7,20 +7,24 @@ import matplotlib.image as mpimg
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+from torch_unet.data_augmentation import StochasticAugmentation
+from torch_unet.globals import *
 from torch_unet.pre_processing import get_image_patches
 from torch_unet.pre_processing.image_utils import rotate_and_crop
 from torch_unet.utils import show_side_by_side
 from tqdm import tqdm
-from torch_unet.globals import *
 
 
 class TrainingSet(Dataset):
     def __init__(self, imgs_dir, masks_dir, mask_threshold, patch_size=400, step=None,
-                 rotation_angles=None):
+                 rotation_angles=None, augmentation=False):
         self.imgs_dir = imgs_dir
         self.masks_dir = masks_dir
         self.mask_threshold = mask_threshold
         
+        # Stochastic augmentation of patches
+        self.augmenter = StochasticAugmentation(prob=AUGMENTATION_PROB)
+        self.augmentation = augmentation
         # Patch size for patching
         
         self.ids = [splitext(file)[0] for file in listdir(imgs_dir)
@@ -51,7 +55,7 @@ class TrainingSet(Dataset):
                      f"total images {self.scale_factor * len(self.ids)}")
     
     def __len__(self):
-        return len(self.images)  # * self.scale_factor
+        return len(self.images)
     
     def get_real_length(self):
         return len(self.ids)
@@ -79,8 +83,14 @@ class TrainingSet(Dataset):
         :param i: Shape is (channel, height, width) (tensor)
         :return:
         """
-        mask = self.preprocess_mask(self.masks[i])
-        img = self.preprocess(self.images[i])
+        img = self.images[i]
+        mask = self.masks[i]
+        if self.augmentation:
+            img, mask = self.augmenter.augment_image(img=img, mask=mask)
+            
+        print(img.shape, mask.shape)
+        mask = self.preprocess_mask(mask)
+        img = self.preprocess(img)
         return {'image': torch.from_numpy(img), 'mask': torch.from_numpy(mask)}
     
     def get_raw_image(self, i):

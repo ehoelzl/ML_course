@@ -26,7 +26,7 @@ class DoubleConv(nn.Module):
                   nn.LeakyReLU() if leaky else nn.ReLU()]
         
         if batch_norm:
-            block.append(nn.BatchNorm2d(in_channels))
+            block.append(nn.BatchNorm2d(out_channels))
         
         self.double_conv = nn.Sequential(*block)
     

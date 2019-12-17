@@ -23,20 +23,24 @@ def split_train_val(dataset, val_ratio, batch_size):
 
 
 def get_model_dir(patch_size, step, depth, batch_size, lr, decay, padding, batch_norm,
-                  dropout, augmentation, init_filters, leaky):
+                  dropout, rotation, init_filters, leaky, balance, augmentation):
     name = f"depth{depth}_BS{batch_size}_lr{lr}_PS{patch_size}_ST{step}_WF{init_filters}"
     if padding:
         name += "_padding"
     if batch_norm:
         name += "_batchnorm"
-    if augmentation:
-        name += "_aug"
+    if rotation:
+        name += "_rot"
     if decay > 0:
         name += f"_decay"
     if dropout > 0:
         name += f"_dropout{dropout}"
     if leaky:
         name += "_leaky"
+    if balance:
+        name += "_balance"
+    if augmentation:
+        name += "_augmentation"
     
     model_dir = os.path.join(MODELS_DIR, name)
     dir_checkpoint = os.path.join(model_dir, "checkpoints/")
@@ -59,15 +63,17 @@ def get_model_dir(patch_size, step, depth, batch_size, lr, decay, padding, batch
 @click.option("--batch-norm", is_flag=True)
 @click.option("--dropout", default=0.)
 @click.option("--leaky", is_flag=True)
+@click.option("--rotations", is_flag=True)
+@click.option("--balance", is_flag=True)
 @click.option("--augmentation", is_flag=True)
 def train(epochs, lr, decay, val_ratio, batch_size, patch_size, step, depth, num_filters, padding, batch_norm, dropout,
-          leaky, augmentation):
+          leaky, rotations, balance, augmentation):
     dir_checkpoint, name = get_model_dir(patch_size, step, depth, batch_size, lr, decay, padding, batch_norm, dropout,
-                                         augmentation, num_filters, leaky)
+                                         rotations, num_filters, leaky, balance, augmentation)
     
     dataset = TrainingSet(IMAGE_DIR, MASK_DIR, mask_threshold=MASK_THRESHOLD,
-                          rotation_angles=ROTATION_ANGLES if augmentation else None, patch_size=patch_size,
-                          step=step if step is None else int(step))
+                          rotation_angles=ROTATION_ANGLES if rotations else None, patch_size=patch_size,
+                          step=step if step is None else int(step), augmentation=augmentation)
     
     n_train, train_loader, n_val, val_loader = split_train_val(dataset, val_ratio, batch_size)
     
@@ -85,7 +91,7 @@ def train(epochs, lr, decay, val_ratio, batch_size, patch_size, step, depth, num
         lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, verbose=True)
     
     train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, val_loader, dir_checkpoint, logger, n_train,
-                n_val, batch_size, writer, val_ratio)
+                n_val, batch_size, writer, val_ratio, balance)
 
 
 if __name__ == "__main__":
