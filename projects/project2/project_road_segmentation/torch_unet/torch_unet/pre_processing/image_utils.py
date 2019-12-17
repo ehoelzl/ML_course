@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import gc
 
 
 def rotate_image(img, angle):
@@ -48,9 +49,11 @@ def mirror_image(img, n):
 
 
 def rotate_and_crop(img, angle, padding, patch_size):
-    mirrored = mirror_image(img, padding)
-    rotated = rotate_image(mirrored, angle)
-    return crop_image(rotated, patch_size, patch_size)
+    img = mirror_image(img, padding)
+    img = rotate_image(img, angle)
+    img = crop_image(img, patch_size, patch_size)
+    gc.collect()
+    return img
 
 
 def flip(image, option_value):

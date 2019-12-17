@@ -14,4 +14,4 @@ DEST_DIR = "../predictions/"
 MODELS_DIR = "./models"
 MASK_THRESHOLD = 0.25
 
-ROTATION_ANGLES = [0, 15, 30, 45, 60, 75, 90, 105, 120]
+ROTATION_ANGLES = [0, 15, 30]

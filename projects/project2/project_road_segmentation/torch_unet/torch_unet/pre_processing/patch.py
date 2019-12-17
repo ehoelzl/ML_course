@@ -35,21 +35,21 @@ def get_image_patches(img, patch_size, step=None):
         return extract_non_overlapping_patches(img, patch_size)
     else:
         return extract_patches_with_step(img, patch_size, step)
+#
+#
+# def patches_per_image(img_shape, patch_size, step=None):
+#     dummy_img = np.zeros(img_shape)
+#
+#     if step is None:
+#         patches = extract_non_overlapping_patches(dummy_img, patch_size)
+#     else:
+#         patches = extract_patches_with_step(dummy_img, patch_size, step)
+#
+#     return patches.shape[0]
 
 
-def patches_per_image(img_shape, patch_size, step=None):
-    dummy_img = np.zeros(img_shape)
-    
-    if step is None:
-        patches = extract_non_overlapping_patches(dummy_img, patch_size)
-    else:
-        patches = extract_patches_with_step(dummy_img, patch_size, step)
-    
-    return patches.shape[0]
-
-
-def get_image_patch(img, patch_size, i, step=None):
-    return get_image_patches(img, patch_size, step)[i]
+# def get_image_patch(img, patch_size, i, step=None):
+#     return get_image_patches(img, patch_size, step)[i]
 
 
 def merge_patches(patches, step, shape):

@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import torch
 from torch_unet.tools.evaluation import eval_net, eval_net_full
 from torch_unet.tools.losses import dice_loss
@@ -12,7 +11,7 @@ SAVE_EVERY = 2000
 
 def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, val_loader, dir_checkpoint, logger, n_train,
                 n_val, batch_size, writer, val_ratio):
-    torch.multiprocessing.set_start_method('spawn')
+    #torch.multiprocessing.set_start_method('spawn')
     # Register device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f'Using device {device}')
@@ -90,6 +89,6 @@ def train_model(epochs, criterion, optimizer, lr_scheduler, net, train_loader, v
         if lr_scheduler is not None:
             lr_scheduler.step(int(epoch_loss * 1000))
             writer.add_scalar("LR", get_lr(optimizer), global_step)
-            
+    
     writer.close()
     torch.save(net.state_dict(), os.path.join(dir_checkpoint, "final.pth"))

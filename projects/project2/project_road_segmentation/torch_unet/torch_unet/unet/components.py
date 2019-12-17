@@ -7,12 +7,10 @@ import torch.nn as nn
 class DoubleConv(nn.Module):
     """(BN => convolution => ReLU) * 2 + Dropout"""
     
-    def __init__(self, in_channels, out_channels, padding, batch_norm=False, leaky=False):
+    def __init__(self, in_channels, out_channels, padding, batch_norm=False, leaky=False, dropout=0.):
         super(DoubleConv, self).__init__()
         
         block = []
-        if batch_norm:
-            block.append(nn.BatchNorm2d(in_channels))
         
         # First conv
         block += [nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=int(padding)),
@@ -21,8 +19,14 @@ class DoubleConv(nn.Module):
         if batch_norm:
             block.append(nn.BatchNorm2d(out_channels))
         
+        if dropout > 0:
+            block.append(nn.Dropout2d(dropout))
+        
         block += [nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=int(padding)),
                   nn.LeakyReLU() if leaky else nn.ReLU()]
+        
+        if batch_norm:
+            block.append(nn.BatchNorm2d(in_channels))
         
         self.double_conv = nn.Sequential(*block)
     
@@ -32,21 +36,16 @@ class DoubleConv(nn.Module):
 
 
 class Down(nn.Module):
-    def __init__(self, in_channels, out_channels, padding, batch_norm=False, leaky=False, dropout=False):
+    def __init__(self, in_channels, out_channels, padding, batch_norm=False, leaky=False, dropout=0.):
         super(Down, self).__init__()
         
         self.conv = DoubleConv(in_channels=in_channels, out_channels=out_channels,
-                               padding=padding, batch_norm=batch_norm, leaky=leaky)
-        self.dropout = None
-        if dropout > 0:
-            self.dropout = nn.Dropout2d(dropout)
+                               padding=padding, batch_norm=batch_norm, leaky=leaky, dropout=dropout)
         self.max_pool = nn.MaxPool2d(2)
     
     def forward(self, x):
         conved = self.conv(x)
         bridge = conved.clone()
-        if self.dropout is not None:
-            conved = self.dropout(conved)
         return self.max_pool(conved), bridge
 
 

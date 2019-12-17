@@ -10,6 +10,8 @@ from torch.utils.data import Dataset
 from torch_unet.pre_processing import get_image_patches
 from torch_unet.pre_processing.image_utils import rotate_and_crop
 from torch_unet.utils import show_side_by_side
+from tqdm import tqdm
+from torch_unet.globals import *
 
 
 class TrainingSet(Dataset):
@@ -28,18 +30,20 @@ class TrainingSet(Dataset):
         self.images = [mpimg.imread(glob(self.imgs_dir + idx + '.png')[0]) for idx in self.ids]
         self.masks = [mpimg.imread(glob(self.masks_dir + idx + '.png')[0]) for idx in self.ids]
         
+        if rotation_angles is not None:
+            rotation_padding = int(np.ceil(TRAIN_SIZE * (np.sqrt(2) - 1) / 2))
+            
+            self.images = [rotate_and_crop(img, angle, rotation_padding, TRAIN_SIZE) for img in tqdm(self.images) for angle
+                           in
+                           rotation_angles]
+            self.masks = [rotate_and_crop(img, angle, rotation_padding, TRAIN_SIZE) for img in tqdm(self.masks) for angle in
+                          rotation_angles]
+        
         # Extract patches
         self.images = [patch for img in self.images for patch in get_image_patches(img, patch_size, step)]
         self.masks = [patch for mask in self.masks for patch in get_image_patches(mask, patch_size, step)]
         
         # Enhance with rotations
-        if rotation_angles is not None:
-            rotation_padding = int(np.ceil(patch_size * (np.sqrt(2) - 1) / 2))
-            
-            self.images = [rotate_and_crop(img, angle, rotation_padding, patch_size) for img in self.images for angle in
-                           rotation_angles]
-            self.masks = [rotate_and_crop(img, angle, rotation_padding, patch_size) for img in self.masks for angle in
-                          rotation_angles]
         
         self.scale_factor = len(self.images) / len(self.ids)
         logging.info(f"Created dataset from {len(self.ids)} original images, scale factor {self.scale_factor}, "

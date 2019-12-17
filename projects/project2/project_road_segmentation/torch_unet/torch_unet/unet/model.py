@@ -17,19 +17,18 @@ class UNet(nn.Module):
         self.down_path = ModuleList()
         self.up_path = ModuleList()
         
-        # Contracting path (Encoder)
+        # Encoder
         prev_channels = n_channels
         out_channels = init_filters
         for i in range(depth - 1):
             self.down_path.append(Down(in_channels=prev_channels, out_channels=out_channels,
-                                       padding=padding, batch_norm=batch_norm, leaky=leaky,
-                                       dropout=dropout if (i == depth - 2) else 0))
+                                       padding=padding, batch_norm=batch_norm, leaky=leaky))
             prev_channels = out_channels
             out_channels *= 2
         
         # Bridge
         self.center = DoubleConv(in_channels=prev_channels, out_channels=out_channels, padding=padding,
-                                 batch_norm=batch_norm, leaky=leaky)
+                                 batch_norm=batch_norm, leaky=leaky, dropout=dropout)
         
         # Decoder
         prev_channels = out_channels

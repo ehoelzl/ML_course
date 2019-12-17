@@ -2,6 +2,7 @@ import logging
 import os
 
 import click
+import torch
 import torch.nn as nn
 from torch import optim
 from torch.utils.data import DataLoader, random_split
@@ -75,6 +76,7 @@ def train(epochs, lr, decay, val_ratio, batch_size, patch_size, step, depth, num
     net = UNet(n_channels=NUM_CHANNELS, n_classes=N_CLASSES, depth=depth, init_filters=num_filters, padding=padding,
                batch_norm=batch_norm, dropout=dropout, leaky=leaky)
     
+    writer.add_graph(net, torch.rand(1, NUM_CHANNELS, patch_size, patch_size))
     optimizer = optim.Adam(net.parameters(), lr=lr)
     criterion = nn.BCEWithLogitsLoss()
     
